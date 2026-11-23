@@ -1,0 +1,521 @@
+<title>Herdr Pulse</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a design-review doc. Placement options as mini window wireframes, then one full interactive mockup in Herdr's own chrome. */
+:root{
+  --bg:#f4f4f2; --panel:#ffffff; --side:#f7f7f5; --line:#e4e3df; --fg:#1c1c1a; --muted:#76746e; --faint:#a9a7a0;
+  --accent:#d4553a; --accent-soft:#fbe9e4;
+  --ok:#2f8a4c; --ok-soft:#e3f2e7; --warn:#b7791f; --warn-soft:#fbf0dc; --bad:#c23a3a; --bad-soft:#f9e2e2; --merged:#7c4dc4; --merged-soft:#eee6fa;
+  --sans:"Inter",-apple-system,"Segoe UI",sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#151514; --panel:#1d1d1b; --side:#191918; --line:#2e2d2a; --fg:#ecebe7; --muted:#9a9891; --faint:#625f59;
+  --accent:#ec7458; --accent-soft:#3a2320; --ok:#5cc27d; --ok-soft:#1d3324; --warn:#e3a94a; --warn-soft:#3a2f1a; --bad:#f07272; --bad-soft:#3d2121; --merged:#a985f0; --merged-soft:#2d2440; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#151514; --panel:#1d1d1b; --side:#191918; --line:#2e2d2a; --fg:#ecebe7; --muted:#9a9891; --faint:#625f59;
+  --accent:#ec7458; --accent-soft:#3a2320; --ok:#5cc27d; --ok-soft:#1d3324; --warn:#e3a94a; --warn-soft:#3a2f1a; --bad:#f07272; --bad-soft:#3d2121; --merged:#a985f0; --merged-soft:#2d2440; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-block:40px 80px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:56px}
+h1{font-size:30px;letter-spacing:-.02em;margin:0;text-wrap:balance}
+h2{font-size:20px;letter-spacing:-.01em;margin:0 0 4px;text-wrap:balance}
+h3{font-size:14px;margin:0}
+p{margin:0;max-width:68ch}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.lead{color:var(--muted);font-size:15px}
+.stack{display:grid;gap:14px}
+code,.mono{font-family:var(--mono);font-size:12px}
+code{background:var(--side);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+
+/* options */
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+.opt{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:10px;align-content:start}
+.opt.rec{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.opt .tag{justify-self:start;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--side);color:var(--muted)}
+.opt.rec .tag{background:var(--accent-soft);color:var(--accent)}
+.opt ul{margin:0;padding-left:18px;color:var(--muted);font-size:13px;display:grid;gap:2px}
+.opt .pro{color:var(--fg)}
+.mini{aspect-ratio:16/10;max-width:100%;border:1px solid var(--line);border-radius:6px;background:var(--bg);display:grid;grid-template-columns:22% 1fr;overflow:hidden;position:relative;font-size:8px;color:var(--muted)}
+.mini .s{background:var(--side);border-right:1px solid var(--line);padding:6px 5px;display:grid;gap:3px;align-content:start}
+.mini .s i{display:block;height:5px;border-radius:2px;background:var(--line)}
+.mini .s i.on{background:var(--accent)}
+.mini .m{padding:5px;display:grid;gap:4px;grid-template-rows:auto 1fr}
+.mini .tabs{display:flex;gap:3px}.mini .tabs b{height:7px;width:28px;border-radius:2px;background:var(--line)}.mini .tabs b.on{background:var(--accent)}
+.mini .body{display:grid;gap:4px;grid-template-columns:1fr 1fr}
+.mini .term{background:var(--panel);border:1px solid var(--line);border-radius:3px}
+.mini .dash{background:var(--panel);border:1px solid var(--accent);border-radius:3px;padding:4px;display:grid;gap:3px;align-content:start}
+.mini .dash .k{display:grid;grid-template-columns:repeat(4,1fr);gap:2px}.mini .dash .k span{height:9px;background:var(--accent-soft);border-radius:2px}
+.mini .dash .r{height:4px;background:var(--line);border-radius:2px}
+.mini .ov{position:absolute;inset:14% 14%;box-shadow:0 6px 24px rgba(0,0,0,.18)}
+.mini .widget{background:var(--accent-soft);border:1px solid var(--accent);border-radius:2px;height:18px;margin-top:4px}
+
+/* screens nav variants */
+.vars{display:grid;gap:16px}
+.var{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:20px;align-items:start}
+.var.rec{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.var .txt{display:grid;gap:8px;min-width:0}
+.var .tag{justify-self:start;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--side);color:var(--muted)}
+.var.rec .tag{background:var(--accent-soft);color:var(--accent)}
+.var ul{margin:0;padding-left:18px;color:var(--muted);font-size:13px;display:grid;gap:2px}
+.var .pro{color:var(--fg)}
+.states{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.st{display:grid;gap:6px;align-content:start}
+.st .cap{font-size:11px;color:var(--muted)}
+.sb{background:var(--side);border:1px solid var(--line);border-radius:8px;padding:8px 6px;font-size:12px;display:grid;gap:2px;align-content:start;min-height:230px;position:relative}
+.sb.withrail{grid-template-columns:30px 1fr;gap:6px;padding:0}
+.sb .rail{background:var(--bg);border-right:1px solid var(--line);display:grid;gap:6px;align-content:start;justify-items:center;padding:8px 0;border-radius:8px 0 0 8px}
+.sb .rail b{width:20px;height:20px;border-radius:5px;display:grid;place-items:center;font-size:10px;color:var(--muted);border:1px solid var(--line);background:var(--panel)}
+.sb .rail b.on{background:var(--fg);color:var(--panel);border-color:var(--fg)}
+.sb .pane{padding:8px 6px 8px 0;display:grid;gap:2px;align-content:start}
+.sb .h{font-weight:700;padding:0 6px 6px;display:flex;justify-content:space-between}
+.sb .lbl{font-size:10px;color:var(--muted);padding:6px 6px 1px}
+.sb .it{display:flex;gap:6px;align-items:center;padding:3px 6px;border-radius:5px}
+.sb .it.on{background:var(--line);font-weight:600}
+.sb .it .d{width:12px;height:12px;border-radius:3px;flex:none}
+.sb .it .c{margin-left:auto;font-size:10px;color:var(--muted)}
+.sb .it .c.hot{background:var(--accent);color:#fff;border-radius:99px;padding:0 5px}
+.sb .btnrow{margin:6px 4px 0;padding:4px 6px;border:1px dashed var(--faint);border-radius:5px;color:var(--fg);display:flex;gap:6px;align-items:center;font-weight:500}
+.sb .btnrow.act{border-style:solid;border-color:var(--accent);color:var(--accent)}
+.sb .back{color:var(--accent);padding:2px 6px 6px;font-weight:500}
+.sb .dim{opacity:.35}
+.pop{position:absolute;left:60%;top:118px;width:150px;background:var(--panel);border:1px solid var(--line);border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.16);padding:5px;display:grid;gap:1px;z-index:1}
+.pop .srch{border:1px solid var(--line);border-radius:4px;padding:2px 5px;color:var(--faint);margin-bottom:3px}
+.grid-launch{position:absolute;inset:30px 6px 6px;background:var(--panel);border:1px solid var(--line);border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.16);padding:6px;display:grid;grid-template-columns:1fr 1fr;gap:4px;align-content:start}
+.grid-launch span{border:1px solid var(--line);border-radius:5px;padding:6px 4px;font-size:10px;display:grid;gap:2px}
+.grid-launch span b{font-size:13px}
+.drop{position:absolute;left:6px;top:26px;width:150px;background:var(--panel);border:1px solid var(--line);border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.16);padding:5px;display:grid;gap:1px;z-index:1}
+@media (max-width:760px){.var{grid-template-columns:1fr}}
+
+/* herdr window mockup */
+.win{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:grid;grid-template-columns:48px 200px 1fr;min-height:640px;box-shadow:0 10px 40px rgba(0,0,0,.06)}
+.rail{background:var(--bg);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 0}
+.rail button{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font:inherit;font-size:14px;cursor:pointer;position:relative;display:grid;place-items:center}
+.rail button.on{background:var(--fg);color:var(--panel);border-color:var(--fg)}
+.rail button .b{position:absolute;top:-5px;right:-5px;background:var(--accent);color:#fff;font-size:9px;font-weight:700;border-radius:99px;padding:0 4px;line-height:14px}
+.rail .gap{flex:1}
+.side{background:var(--side);border-right:1px solid var(--line);padding:12px 8px;display:grid;gap:4px;align-content:start;font-size:13px}
+.brand{font-weight:700;padding:0 6px 10px}
+.navitem{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;border:0;background:none;color:inherit;font:inherit;text-align:left}
+.navitem.on{background:var(--line);font-weight:600}
+.navitem .dot{width:16px;height:16px;border-radius:4px;display:grid;place-items:center;color:#fff;font-size:10px;font-weight:700}
+.navitem .cnt{margin-left:auto;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.navitem .cnt.hot{background:var(--accent);color:#fff;border-radius:99px;padding:0 6px}
+.sidelabel{font-size:11px;color:var(--muted);padding:10px 8px 2px;display:flex;justify-content:space-between}
+.sidewidget{margin:6px 4px 0;border:1px solid var(--line);border-radius:8px;padding:8px;display:grid;gap:4px;background:var(--panel);font-size:12px}
+.sidewidget div{display:flex;justify-content:space-between}
+.main{min-width:0;display:grid;grid-template-rows:auto 1fr}
+.topbar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.topbar .title{font-weight:600}
+.topbar .sp{flex:1}
+.acc{display:flex;gap:4px;flex-wrap:wrap}
+.acc button{font:inherit;font-size:12px;border:1px solid var(--line);background:var(--panel);color:var(--fg);padding:3px 10px;border-radius:99px;cursor:pointer;display:flex;gap:6px;align-items:center}
+.acc button .av{width:14px;height:14px;border-radius:50%;display:inline-block}
+.acc button[aria-pressed="true"]{background:var(--fg);color:var(--panel);border-color:var(--fg)}
+.btn{font:inherit;font-size:12px;border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:3px 10px;border-radius:6px;cursor:pointer}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.content{padding:16px;display:grid;gap:16px;align-content:start;overflow:auto;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.kpi{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:2px}
+.kpi .l{font-size:11px;color:var(--muted)}
+.kpi .v{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.kpi .d{font-size:11px;font-variant-numeric:tabular-nums}
+.kpi.attn{border-color:var(--warn);background:var(--warn-soft)}
+.kpi.bad{border-color:var(--bad);background:var(--bad-soft)}
+.up{color:var(--ok)}.down{color:var(--bad)}
+.grid2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px}
+.card{border:1px solid var(--line);border-radius:8px;min-width:0}
+.card header{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line)}
+.card header .n{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.card header .sp{flex:1}
+.wid{font-family:var(--mono);font-size:10px;color:var(--faint)}
+.board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}
+.col{border-right:1px solid var(--line);padding:8px;display:grid;gap:6px;align-content:start;min-width:0}
+.col:last-child{border-right:0}
+.col h4{margin:0 0 2px;font-size:12px;display:flex;gap:6px;align-items:center}
+.col h4 .c{font-size:11px;color:var(--muted);font-weight:500}
+.pr{border:1px solid var(--line);border-left:3px solid var(--line);border-radius:6px;padding:6px 8px;display:grid;gap:3px;background:var(--panel);font-size:12px;min-width:0}
+.pr .t{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pr .meta{display:flex;gap:6px;color:var(--muted);font-size:11px;flex-wrap:wrap;align-items:center}
+.pr .loc{font-family:var(--mono);font-size:10.5px}
+.pr.review{border-left-color:var(--warn)}.pr.blocked{border-left-color:var(--bad)}.pr.ready{border-left-color:var(--ok)}.pr.waiting{border-left-color:var(--faint)}
+.pill{font-size:10px;padding:0 6px;border-radius:99px;font-weight:600}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}.pill.warn{background:var(--warn-soft);color:var(--warn)}.pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.m{background:var(--merged-soft);color:var(--merged)}
+.accdot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.chart{padding:12px}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-size:10px;font-family:var(--sans)}
+.legend{display:flex;gap:12px;font-size:11px;color:var(--muted);padding:0 12px 10px}
+.legend span{display:flex;align-items:center;gap:4px}
+table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:6px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-weight:500;color:var(--muted);font-size:11px}
+tr:last-child td{border-bottom:0}
+.tbl{overflow-x:auto}
+.example{font-size:11px;color:var(--muted)}
+
+/* notes */
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}
+.note{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:10px;align-content:start;min-width:0}
+.note ul,.note ol{margin:0;padding-left:18px;display:grid;gap:4px}
+.ghtable td{white-space:normal;vertical-align:top}
+.ghtable td:first-child{font-weight:500}
+.q{display:grid;gap:8px}
+.q li::marker{color:var(--accent);font-weight:700}
+
+@media (max-width:900px){
+  .win{grid-template-columns:1fr}.side,.rail{display:none}
+  .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .grid2{grid-template-columns:1fr}
+  .board{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .col:nth-child(2){border-right:0}.col:nth-child(-n+2){border-bottom:1px solid var(--line)}
+}
+@media (max-width:520px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.board{grid-template-columns:1fr}.col{border-right:0;border-bottom:1px solid var(--line)}}
+</style>
+
+<div class="wrap">
+
+<header class="stack">
+  <div class="eyebrow">dkt_herdr · design draft · not implemented</div>
+  <h1>Herdr Pulse</h1>
+  <p class="lead">A personal GitHub performance page inside Herdr: PRs, reviews, blockers and code volume across all my <code>gh</code> accounts, with one click to narrow to a single account. Workspaces stay for doing work; Pulse is for seeing where work stands.</p>
+</header>
+
+<section class="stack">
+  <div><div class="eyebrow">1 · Where it lives</div><h2>Four ways to place a dashboard in Herdr</h2>
+  <p class="lead">All four are possible with today's mod system (no core changes). They can be combined; the recommendation is B, with D added later.</p></div>
+  <div class="opts">
+    <article class="opt">
+      <span class="tag">A · Tab in a space</span>
+      <div class="mini"><div class="s"><i></i><i class="on"></i><i></i><i></i></div><div class="m"><div class="tabs"><b></b><b class="on"></b></div><div class="body" style="grid-template-columns:1fr"><div class="dash"><div class="k"><span></span><span></span><span></span><span></span></div><div class="r"></div><div class="r"></div></div></div></div></div>
+      <h3>Pulse opens as a tab, like Files and Changes</h3>
+      <ul><li class="pro">Smallest build: <code>tab.new {mod:"pulse"}</code></li><li class="pro">Can split next to a terminal</li><li>Belongs to one space, so it feels like part of a project</li><li>Easy to lose among terminal tabs</li></ul>
+    </article>
+    <article class="opt rec">
+      <span class="tag">B · Own place in the sidebar · recommended</span>
+      <div class="mini"><div class="s"><i class="on"></i><i></i><i></i><i></i><i></i></div><div class="m"><div class="tabs"><b class="on"></b></div><div class="body" style="grid-template-columns:1fr"><div class="dash"><div class="k"><span></span><span></span><span></span><span></span></div><div class="r"></div><div class="r"></div><div class="r"></div></div></div></div></div>
+      <h3>"Pulse" above Spaces swaps the whole main area</h3>
+      <ul><li class="pro">Top level: not tied to any space or machine</li><li class="pro">Full width for a growing set of widgets</li><li class="pro">Built as a second layout (<code>layouts/pulse.json</code>) that keeps the same sidebar, so switching back is one click and terminals keep running</li><li>Needs a small sidebar entry in the spaces mod</li></ul>
+    </article>
+    <article class="opt">
+      <span class="tag">C · Overlay on a hotkey</span>
+      <div class="mini"><div class="s"><i></i><i class="on"></i><i></i></div><div class="m"><div class="tabs"><b class="on"></b><b></b></div><div class="body"><div class="term"></div><div class="term"></div></div></div><div class="dash ov"><div class="k"><span></span><span></span><span></span><span></span></div><div class="r"></div><div class="r"></div></div></div>
+      <h3>⌘⇧P shows Pulse over everything; Esc hides it</h3>
+      <ul><li class="pro">Fast glance without leaving the terminal</li><li class="pro">Uses the existing <code>overlay</code> API</li><li>Small; not good for deep lists or charts</li></ul>
+    </article>
+    <article class="opt">
+      <span class="tag">D · Sidebar widget</span>
+      <div class="mini"><div class="s"><i></i><i class="on"></i><i></i><div class="widget"></div></div><div class="m"><div class="tabs"><b class="on"></b><b></b></div><div class="body"><div class="term"></div><div class="term"></div></div></div></div>
+      <h3>Small "Reviews 3 · Blocked 1" block under Agents</h3>
+      <ul><li class="pro">Always visible, like the agents list</li><li class="pro">Click opens the full page (B)</li><li>Only counts, not a dashboard on its own</li></ul>
+    </article>
+  </div>
+</section>
+
+<section class="stack">
+  <div><div class="eyebrow">2 · Moving between screens</div><h2>A "Screens" entry under Spaces, and Spaces hide while a screen is open</h2>
+  <p class="lead">Pulse is the first of many screens. Each variant below shows the sidebar in a workspace and with a screen open. In all of them a screen is a Herdr layout (<code>layouts/pulse.json</code>) opened with <code>layout.switch</code>, so terminals keep running and going back is instant.</p></div>
+  <div class="vars">
+
+    <article class="var">
+      <div class="txt">
+        <span class="tag">V1 · Screens button + list</span>
+        <h3>A "Screens" button under the Spaces list opens a searchable list</h3>
+        <ul>
+          <li class="pro">Exactly one new control in the workspace sidebar</li>
+          <li class="pro">Search in the list, so 20+ screens stay manageable</li>
+          <li class="pro">Each row can show a live badge (Pulse: 4 need you)</li>
+          <li class="pro">Inside a screen the sidebar becomes that screen's own menu: Pulse shows its accounts there, so the account switcher moves out of the top bar</li>
+          <li>Two clicks to reach a screen; add a hotkey per screen for speed</li>
+        </ul>
+      </div>
+      <div class="states">
+        <div class="st"><span class="cap">Workspace · list open</span>
+          <div class="sb"><div class="h">Herdr</div><div class="lbl">Spaces</div>
+            <div class="it"><i class="d" style="background:#2f8a6c"></i>go-gql-api</div><div class="it"><i class="d" style="background:#7c4dc4"></i>finn_resell</div><div class="it on"><i class="d" style="background:#c43a7a"></i>dkt_herdr</div>
+            <div class="btnrow act">▦ Screens <span style="margin-left:auto">▸</span></div>
+            <div class="lbl">Agents</div><div class="it dim">dkt_herdr · idle</div>
+            <div class="pop"><span class="srch">Search screens…</span><div class="it on">◉ Pulse<span class="c hot">4</span></div><div class="it">⚙ CI health</div><div class="it">◷ Agent time</div><div class="it">✎ Notes</div></div>
+          </div></div>
+        <div class="st"><span class="cap">Pulse open · Spaces hidden</span>
+          <div class="sb"><div class="back">← Spaces</div><div class="h">◉ Pulse</div>
+            <div class="lbl">Accounts</div><div class="it on">All accounts<span class="c">10</span></div><div class="it"><i class="d" style="background:#3b6fd4;border-radius:50%"></i>dkt-work<span class="c">6</span></div><div class="it"><i class="d" style="background:#2f8a4c;border-radius:50%"></i>dimakohanskyi<span class="c">3</span></div><div class="it"><i class="d" style="background:#b7791f;border-radius:50%"></i>dkt-oss<span class="c">2</span></div>
+            <div class="lbl">Sections</div><div class="it">Overview</div><div class="it">PR board</div><div class="it">Code volume</div>
+            <div class="btnrow">▦ Screens</div>
+          </div></div>
+      </div>
+    </article>
+
+    <article class="var rec">
+      <div class="txt">
+        <span class="tag">V2 · Icon rail · chosen</span>
+        <h3>A thin icon strip at the far left: Workspace, Pulse, and other screens</h3>
+        <ul>
+          <li class="pro">One click to any screen; always visible where you are</li>
+          <li class="pro">Familiar from VS Code, Slack and Discord</li>
+          <li>Costs about 40px of width all the time</li>
+          <li>Past 6 to 8 icons it needs a "⋯ more" button anyway</li>
+        </ul>
+      </div>
+      <div class="states">
+        <div class="st"><span class="cap">Workspace</span>
+          <div class="sb withrail"><div class="rail"><b class="on">▤</b><b>◉</b><b>⚙</b><b>⋯</b></div><div class="pane"><div class="h">Spaces</div><div class="it">go-gql-api</div><div class="it">finn_resell</div><div class="it on">dkt_herdr</div><div class="lbl">Agents</div><div class="it dim">dkt_herdr · idle</div></div></div></div>
+        <div class="st"><span class="cap">Pulse open</span>
+          <div class="sb withrail"><div class="rail"><b>▤</b><b class="on">◉</b><b>⚙</b><b>⋯</b></div><div class="pane"><div class="h">Pulse</div><div class="lbl">Accounts</div><div class="it on">All accounts</div><div class="it">dkt-work</div><div class="it">dimakohanskyi</div><div class="it">dkt-oss</div></div></div></div>
+      </div>
+    </article>
+
+    <article class="var">
+      <div class="txt">
+        <span class="tag">V3 · Switcher in the sidebar header</span>
+        <h3>Click "Herdr ▾" at the top to pick Workspace, Pulse or another screen</h3>
+        <ul>
+          <li class="pro">No extra controls at all; the sidebar stays as it is today</li>
+          <li class="pro">The header always names the current screen</li>
+          <li>Hidden: you have to know the header is clickable</li>
+        </ul>
+      </div>
+      <div class="states">
+        <div class="st"><span class="cap">Workspace · menu open</span>
+          <div class="sb"><div class="h">Herdr ▾</div><div class="lbl dim">Spaces</div><div class="it dim">go-gql-api</div><div class="it dim">dkt_herdr</div>
+            <div class="drop"><div class="it on">▤ Workspace</div><div class="it">◉ Pulse<span class="c hot">4</span></div><div class="it">⚙ CI health</div><div class="it">◷ Agent time</div></div></div></div>
+        <div class="st"><span class="cap">Pulse open</span>
+          <div class="sb"><div class="h">◉ Pulse ▾</div><div class="lbl">Accounts</div><div class="it on">All accounts</div><div class="it">dkt-work</div><div class="it">dimakohanskyi</div><div class="it">dkt-oss</div></div></div>
+      </div>
+    </article>
+
+    <article class="var">
+      <div class="txt">
+        <span class="tag">V4 · Launcher grid</span>
+        <h3>The Screens button opens a grid of tiles, each with a live summary</h3>
+        <ul>
+          <li class="pro">The launcher itself is a mini dashboard (counts on every tile)</li>
+          <li class="pro">Scales best once there are many screens</li>
+          <li>Most work to build; a grid is slower to scan than a list for 3 or 4 screens</li>
+        </ul>
+      </div>
+      <div class="states">
+        <div class="st"><span class="cap">Launcher open</span>
+          <div class="sb"><div class="h">Herdr</div><div class="lbl">Spaces</div><div class="it dim">go-gql-api</div><div class="it dim">dkt_herdr</div><div class="btnrow act">▦ Screens</div>
+            <div class="grid-launch"><span><b>◉</b>Pulse<em style="color:var(--accent);font-style:normal">4 need you</em></span><span><b>⚙</b>CI health<em style="font-style:normal;color:var(--muted)">2 red</em></span><span><b>◷</b>Agent time<em style="font-style:normal;color:var(--muted)">6h today</em></span><span><b>✎</b>Notes<em style="font-style:normal;color:var(--muted)">12</em></span></div></div></div>
+        <div class="st"><span class="cap">Pulse open</span>
+          <div class="sb"><div class="back">← Spaces</div><div class="h">◉ Pulse</div><div class="lbl">Accounts</div><div class="it on">All accounts</div><div class="it">dkt-work</div><div class="it">dimakohanskyi</div><div class="it">dkt-oss</div></div></div>
+      </div>
+    </article>
+  </div>
+  <p class="example">Shared by all variants: hotkeys per screen (for example ⌘1 for the workspace, ⌘2 for Pulse), the last open screen is remembered, and adding a new screen is just adding a layout plus one line to the screens list.</p>
+</section>
+
+<section class="stack">
+  <div><div class="eyebrow">3 · The page</div><h2>Pulse with V2: icon rail on the left, accounts in the sidebar</h2>
+  <p class="lead">Click the account chips to see how filtering works. Every box is a widget with its own id (grey label at top right), so new ones slot in without redesigning the page. <span class="example">All numbers and PRs are example data.</span></p></div>
+
+  <div class="win">
+    <nav class="rail" aria-label="Screens">
+      <button title="Workspace (⌘1)">▤</button>
+      <button class="on" title="Pulse (⌘2)">◉<span class="b">4</span></button>
+      <button title="CI health (⌘3)">⚙</button>
+      <button title="Agent time (⌘4)">◷</button>
+      <span class="gap"></span>
+      <button title="All screens">⋯</button>
+    </nav>
+    <nav class="side" aria-label="Pulse sidebar">
+      <div class="brand" style="padding-top:4px">◉ Pulse <span class="cnt hot" id="sideHot" style="font-size:11px;background:var(--accent);color:#fff;border-radius:99px;padding:0 6px;font-weight:600">4</span></div>
+      <div class="sidelabel"><span>Accounts</span></div>
+      <div id="sideAcc" style="display:grid;gap:2px"></div>
+      <div class="sidelabel"><span>Sections</span></div>
+      <button class="navitem">Overview</button>
+      <button class="navitem">PR board</button>
+      <button class="navitem">Code volume</button>
+      <button class="navitem">Issues</button>
+      <div class="sidewidget" aria-label="Summary"><div><span>Reviews</span><b id="swR">3</b></div><div><span>Blocked</span><b id="swB" style="color:var(--bad)">1</b></div></div>
+    </nav>
+
+    <div class="main">
+      <div class="topbar">
+        <span class="title" id="accTitle">All accounts</span>
+        <div class="acc" role="group" aria-label="Account" id="acc"></div>
+        <span class="sp"></span>
+        <span class="example" id="sync">synced 2 min ago</span>
+        <button class="btn">Last 30 days ▾</button>
+        <button class="btn">Refresh</button>
+      </div>
+
+      <div class="content">
+        <div class="kpis" id="kpis"></div>
+
+        <section class="card">
+          <header><h3>My PR board</h3><span class="n" id="boardN"></span><span class="sp"></span><span class="wid">widget: pr-board</span></header>
+          <div class="board" id="board"></div>
+        </section>
+
+        <div class="grid2">
+          <section class="card">
+            <header><h3>Lines changed per week</h3><span class="sp"></span><span class="wid">widget: loc-weekly</span></header>
+            <div class="chart" id="chart"></div>
+            <div class="legend"><span><i class="accdot" style="background:var(--ok)"></i>added</span><span><i class="accdot" style="background:var(--bad)"></i>removed</span><span>merged PRs only</span></div>
+          </section>
+          <section class="card">
+            <header><h3>Repos</h3><span class="sp"></span><span class="wid">widget: repos</span></header>
+            <div class="tbl"><table><thead><tr><th>Repo</th><th>Open</th><th>Merged</th><th>+/−</th></tr></thead><tbody id="repos"></tbody></table></div>
+          </section>
+        </div>
+
+        <section class="card">
+          <header><h3>Issues assigned to me</h3><span class="sp"></span><span class="wid">widget: issues</span></header>
+          <div class="tbl"><table><thead><tr><th>Issue</th><th>Repo</th><th>Account</th><th>State</th><th>Updated</th></tr></thead><tbody id="issues"></tbody></table></div>
+        </section>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cols">
+  <div class="note">
+    <div class="eyebrow">4 · Data</div>
+    <h2>What comes from gh</h2>
+    <div class="tbl"><table class="ghtable"><tbody>
+      <tr><td>Accounts</td><td><code>gh auth status --json hosts</code> lists every logged-in account; <code>gh auth token -u NAME</code> gives each one's token</td></tr>
+      <tr><td>My open PRs</td><td><code>gh search prs --author=@me --state=open --json …</code></td></tr>
+      <tr><td>Needs my review</td><td><code>gh search prs --review-requested=@me --state=open</code></td></tr>
+      <tr><td>Assigned</td><td><code>gh search prs --assignee=@me</code> and <code>gh search issues --assignee=@me</code></td></tr>
+      <tr><td>Blocked</td><td>one GraphQL call: <code>reviewDecision = CHANGES_REQUESTED</code>, failing checks, merge conflicts, or a <code>blocked</code> label</td></tr>
+      <tr><td>Ready to merge</td><td>approved, checks green, mergeable</td></tr>
+      <tr><td>Lines of code</td><td><code>additions</code> / <code>deletions</code> of merged PRs in the date range, summed per week</td></tr>
+      <tr><td>Time to merge</td><td><code>mergedAt − createdAt</code>, median</td></tr>
+    </tbody></table></div>
+    <p class="example">One GraphQL search per account per refresh is enough for everything above. Results are cached in the mod's storage so the page opens instantly, then refreshes every few minutes in the background.</p>
+  </div>
+
+  <div class="note">
+    <div class="eyebrow">5 · Built to grow</div>
+    <h2>Widgets, not a fixed page</h2>
+    <ul>
+      <li>Each widget is one file: <code>fetch(accounts, range)</code> → data, <code>render(data)</code> → view.</li>
+      <li>Which widgets show, and in what order, is a list in settings. Turning one off is deleting a line.</li>
+      <li>Every widget gets the same account filter and date range for free.</li>
+      <li>A shared data layer runs the gh calls once; widgets read from it instead of calling gh themselves.</li>
+    </ul>
+    <h3>Ideas for later</h3>
+    <ul>
+      <li><b>Open in space:</b> click a PR, Herdr opens its repo's space on that branch (Herdr-only feature)</li>
+      <li>Agent time per repo from Herdr's own agent list</li>
+      <li>CI health: flaky checks, slowest workflows</li>
+      <li>Review load: reviews given vs received</li>
+      <li>Streak and activity heatmap</li>
+      <li>Jira / Linear tickets beside their PRs</li>
+      <li>Notifications for new review requests</li>
+    </ul>
+  </div>
+
+  <div class="note">
+    <div class="eyebrow">6 · Before building</div>
+    <h2>Constraints and open questions</h2>
+    <ul>
+      <li>Herdr mods draw native GPUI, not HTML. This page is only a mockup; the real one is a JS mod using <code>exec("gh", …)</code>.</li>
+      <li><code>exec</code> takes no env vars, so per-account calls go through <code>sh -c 'GH_TOKEN=$(gh auth token -u NAME) gh …'</code>.</li>
+      <li>Charts are drawn with divs (bars), which fits the weekly bar chart.</li>
+    </ul>
+    <ol class="q">
+      <li>Rail: should it stay visible in the workspace too (always one click), or can it be collapsed with a hotkey to save width?</li>
+      <li>What counts as "blocked" for you: changes requested, red CI, conflicts, a label, or all four?</li>
+      <li>Are all accounts on github.com, or is one on GitHub Enterprise?</li>
+      <li>Should "All accounts" add numbers up, or show them side by side per account?</li>
+      <li>Default date range: 7 days, 30 days, or this sprint?</li>
+    </ol>
+  </div>
+</section>
+</div>
+
+<script>
+// Example data only.
+const ACC = {
+  work:{name:"dkt-work",color:"#3b6fd4"},
+  personal:{name:"dimakohanskyi",color:"#2f8a4c"},
+  oss:{name:"dkt-oss",color:"#b7791f"}
+};
+const PRS = [
+  {a:"work",t:"HDS-61 GraphQL pagination for orders",r:"acme/go-gql-api",col:"review",add:412,del:88,age:"2h",who:"@mlenz"},
+  {a:"work",t:"Bump pgx to v5.7",r:"acme/platform",col:"review",add:36,del:31,age:"1d",who:"@kira"},
+  {a:"oss",t:"Fix panic on empty config",r:"herdrdev/herdr-core",col:"review",add:12,del:3,age:"3d",who:"@can"},
+  {a:"work",t:"Feature/budget export CSV",r:"acme/teoripr-v2",col:"blocked",add:640,del:120,age:"4d",why:"changes requested"},
+  {a:"personal",t:"Resell price scraper retries",r:"dimakohanskyi/finn_resell",col:"blocked",add:95,del:40,age:"6d",why:"CI failing"},
+  {a:"work",t:"HDS-58 auth middleware tests",r:"acme/go-gql-api",col:"waiting",add:230,del:12,age:"1d",who:"2 reviewers"},
+  {a:"personal",t:"Pulse dashboard mod",r:"dimakohanskyi/dkt_herdr",col:"waiting",add:880,del:20,age:"5h",who:"draft"},
+  {a:"oss",t:"Docs: Windows install notes",r:"herdrdev/herdr-app",col:"waiting",add:44,del:9,age:"2d",who:"@can"},
+  {a:"work",t:"Orders service: drop legacy flag",r:"acme/go-gql-api",col:"ready",add:15,del:210,age:"3h"},
+  {a:"personal",t:"rust-projects: clippy fixes",r:"dimakohanskyi/rust-projects",col:"ready",add:61,del:58,age:"1d"},
+];
+const ISSUES = [
+  {a:"work",t:"HDS-63 Rate limit per tenant",r:"acme/go-gql-api",s:"open",u:"today"},
+  {a:"work",t:"Flaky test in checkout flow",r:"acme/platform",s:"open",u:"2d"},
+  {a:"oss",t:"Space order resets on restart",r:"herdrdev/herdr-app",s:"open",u:"4d"},
+  {a:"personal",t:"Add OLX source",r:"dimakohanskyi/finn_resell",s:"closed",u:"1w"},
+];
+const STATS = { // per account: merged30, prev, medianHours, weekly [add,del] x8
+  work:{m:14,p:11,h:19,w:[[1200,300],[900,500],[1600,420],[700,200],[2100,900],[1300,400],[1800,600],[1100,350]]},
+  personal:{m:6,p:8,h:6,w:[[300,40],[500,120],[200,60],[900,100],[150,30],[400,90],[700,210],[350,80]]},
+  oss:{m:3,p:1,h:41,w:[[40,10],[0,0],[120,30],[60,20],[0,0],[200,40],[90,15],[60,12]]},
+};
+const COLS = [["review","Needs my review","warn"],["waiting","Waiting on others",""],["blocked","Blocked","bad"],["ready","Ready to merge","ok"]];
+let sel = "all";
+const $ = id => document.getElementById(id);
+const pick = arr => sel==="all" ? arr : arr.filter(x=>x.a===sel);
+const keys = () => sel==="all" ? Object.keys(STATS) : [sel];
+const fmt = n => n>=1000 ? (n/1000).toFixed(1)+"k" : String(n);
+const dot = a => `<i class="accdot" style="background:${ACC[a].color}" title="${ACC[a].name}"></i>`;
+
+function renderAcc(){
+  const b = [["all","All accounts",null],...Object.entries(ACC).map(([k,v])=>[k,v.name,v.color])];
+  $("acc").innerHTML = b.map(([k,n,c])=>`<button aria-pressed="${sel===k}" data-k="${k}">${c?`<span class="av" style="background:${c}"></span>`:""}${n}</button>`).join("");
+  $("acc").querySelectorAll("button").forEach(x=>x.onclick=()=>{sel=x.dataset.k;render()});
+  const cnt = k => (k==="all"?PRS:PRS.filter(p=>p.a===k)).length;
+  $("sideAcc").innerHTML = b.map(([k,n,c])=>`<button class="navitem${sel===k?" on":""}" data-k="${k}">${c?`<i class="accdot" style="background:${c}"></i>`:""}${n}<span class="cnt">${cnt(k)}</span></button>`).join("");
+  $("sideAcc").querySelectorAll("button").forEach(x=>x.onclick=()=>{sel=x.dataset.k;render()});
+  $("accTitle").textContent = sel==="all" ? "All accounts" : ACC[sel].name;
+  $("acc").hidden = true; // ponytail: the account switcher lives in the sidebar now
+}
+function render(){
+  renderAcc();
+  const prs = pick(PRS), ks = keys();
+  const n = c => prs.filter(p=>p.col===c).length;
+  const merged = ks.reduce((s,k)=>s+STATS[k].m,0), prev = ks.reduce((s,k)=>s+STATS[k].p,0);
+  const add = ks.reduce((s,k)=>s+STATS[k].w.reduce((a,w)=>a+w[0],0),0), del = ks.reduce((s,k)=>s+STATS[k].w.reduce((a,w)=>a+w[1],0),0);
+  const hrs = Math.round(ks.reduce((s,k)=>s+STATS[k].h,0)/ks.length);
+  const mine = prs.filter(p=>p.col!=="review").length;
+  const d = merged-prev;
+  $("kpis").innerHTML = [
+    ["Open PRs (mine)",mine,"",""],
+    ["Needs my review",n("review"),"oldest "+(prs.filter(p=>p.col==="review").pop()?.age||"–"),n("review")?"attn":""],
+    ["Blocked",n("blocked"),n("blocked")?"act on these first":"none",n("blocked")?"bad":""],
+    ["Merged · 30d",merged,`<span class="${d>=0?"up":"down"}">${d>=0?"▲":"▼"} ${Math.abs(d)} vs prev</span>`,""],
+    ["Lines +/− · 30d",`<span class="up">+${fmt(add)}</span>`,`<span class="down">−${fmt(del)}</span>`,""],
+    ["Median time to merge",hrs+"h","",""],
+  ].map(([l,v,dd,c])=>`<div class="kpi ${c}"><span class="l">${l}</span><span class="v">${v}</span><span class="d">${dd}</span></div>`).join("");
+  $("sideHot").textContent = n("review")+n("blocked"); $("swR").textContent=n("review"); $("swB").textContent=n("blocked");
+  $("boardN").textContent = prs.length+" PRs";
+  $("board").innerHTML = COLS.map(([c,label,tone])=>{
+    const items = prs.filter(p=>p.col===c);
+    return `<div class="col"><h4>${label}<span class="c">${items.length}</span></h4>${items.map(p=>`
+      <div class="pr ${c}"><span class="t" title="${p.t}">${p.t}</span>
+      <span class="meta">${sel==="all"?dot(p.a):""}<span>${p.r.split("/")[1]}</span><span class="loc"><span class="up">+${p.add}</span> <span class="down">−${p.del}</span></span><span>${p.age}</span>
+      ${p.why?`<span class="pill bad">${p.why}</span>`:""}${c==="ready"?`<span class="pill ok">approved</span>`:""}${p.who&&c!=="ready"?`<span>${p.who}</span>`:""}</span></div>`).join("")||`<span class="example">Nothing here</span>`}</div>`;
+  }).join("");
+  // chart
+  const weeks = [0,1,2,3,4,5,6,7].map(i=>ks.reduce((s,k)=>[s[0]+STATS[k].w[i][0],s[1]+STATS[k].w[i][1]],[0,0]));
+  const max = Math.max(...weeks.flat(),1), W=420,H=170,top=10,mid=110,bot=160,bw=26,gap=(W-40-8*bw)/7;
+  const ya = mid-top, yb = bot-mid, sc = Math.max(...weeks.map(w=>w[0]),1), sd = Math.max(...weeks.map(w=>w[1]),1);
+  const s = Math.max(sc/ya, sd/yb);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Lines added and removed per week"><line x1="32" x2="${W}" y1="${mid}" y2="${mid}" stroke="var(--line)"/>`;
+  svg += `<text x="28" y="${top+4}" text-anchor="end">+${fmt(Math.round(s*ya))}</text><text x="28" y="${mid+4}" text-anchor="end">0</text><text x="28" y="${bot}" text-anchor="end">−${fmt(Math.round(s*yb))}</text>`;
+  weeks.forEach((w,i)=>{const x=40+i*(bw+gap);const ha=w[0]/s,hd=w[1]/s;
+    svg+=`<rect x="${x}" y="${mid-ha}" width="${bw}" height="${ha}" rx="2" fill="var(--ok)"${i===7?"":' opacity=".75"'}/><rect x="${x}" y="${mid}" width="${bw}" height="${hd}" rx="2" fill="var(--bad)"${i===7?"":' opacity=".6"'}/>`;
+    if(i%2===1||i===7) svg+=`<text x="${x+bw/2}" y="${H-0}" text-anchor="middle">${i===7?"this wk":"w-"+(7-i)}</text>`;});
+  $("chart").innerHTML = svg+"</svg>";
+  // repos
+  const rep = {};
+  prs.forEach(p=>{const r=rep[p.r]??={o:0,a:p.a,add:0,del:0,m:0};r.o++;r.add+=p.add;r.del+=p.del;r.m+= (p.r.length%3)+1;});
+  $("repos").innerHTML = Object.entries(rep).sort((a,b)=>b[1].add-a[1].add).map(([r,v])=>`<tr><td>${dot(v.a)} ${r.split("/")[1]}</td><td>${v.o}</td><td>${v.m}</td><td><span class="up">+${fmt(v.add)}</span> <span class="down">−${fmt(v.del)}</span></td></tr>`).join("");
+  $("issues").innerHTML = pick(ISSUES).map(i=>`<tr><td>${i.t}</td><td>${i.r.split("/")[1]}</td><td>${dot(i.a)} ${ACC[i.a].name}</td><td><span class="pill ${i.s==="open"?"ok":"m"}">${i.s}</span></td><td>${i.u}</td></tr>`).join("");
+}
+render();
+</script>
