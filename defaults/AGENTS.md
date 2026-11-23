@@ -182,9 +182,12 @@ with a header; Files and Changes panels on the right, `files` and
 shared `"workspace.panels"`, set by the welcome); a status bar,
 `workspace-status`; a screens rail on the far left, `rail`, that switches
 the `screens` stack between `workspace` (all of the above) and `pulse`:
-the `pulse` mod, the person's GitHub PRs, reviews, blockers and lines
-changed across every account `gh auth status` lists, by account and for
-7, 30 or 90 days; it runs `gh` and refreshes every 5 minutes; and `jira`:
+the `pulse` mod, the person's GitHub PRs, reviews, blockers, lines
+changed (merged and open PRs) and daily activity (commits, PRs opened and
+merged, reviews, workflow runs they triggered, comments, branches and
+releases) across every account `gh auth status` lists, by account, for
+organisation repos (default), personal repos or both, and for 7, 30 or 90
+days; it runs `gh` and refreshes every 5 minutes; and `jira`:
 the person's Jira Cloud tickets as a board (To Do, In Progress, In Review,
 Stage QA, Done from the last 14 days, Backlog on demand), each with the
 PRs that mention its key and its space, and Move to, Assign to me and
