@@ -262,6 +262,9 @@ fn module(values: BTreeMap<String, Value>, calls: Rc<RefCell<Calls>>) -> HostMod
                 {
                     Some(json!({"code":128,"stdout":"","stderr":"fixture: not a git repository"}))
                 }
+                // Pulse asks gh (directly or through sh) and Jira the macOS Keychain: neither is set up here.
+                "exec" if first == "gh" || first == "sh" => Some(json!({"code":1,"stdout":"","stderr":"fixture: gh not logged in"})),
+                "exec" if first == "security" => Some(json!({"code":44,"stdout":"","stderr":"fixture: no keychain item"})),
                 _ => None,
             };
             let result = if let Some(reply) = reply {
