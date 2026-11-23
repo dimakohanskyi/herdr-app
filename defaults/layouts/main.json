@@ -207,6 +207,13 @@
           "content": {
             "mod": "pulse"
           }
+        },
+        {
+          "id": "jira",
+          "type": "block",
+          "content": {
+            "mod": "jira"
+          }
         }
       ]
     }

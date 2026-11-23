@@ -184,7 +184,12 @@ shared `"workspace.panels"`, set by the welcome); a status bar,
 the `screens` stack between `workspace` (all of the above) and `pulse`:
 the `pulse` mod, the person's GitHub PRs, reviews, blockers and lines
 changed across every account `gh auth status` lists, by account and for
-7, 30 or 90 days; it runs `gh` and refreshes every 5 minutes. Show a
+7, 30 or 90 days; it runs `gh` and refreshes every 5 minutes; and `jira`:
+the person's Jira Cloud tickets as a board (To Do, In Progress, In Review,
+Stage QA, Done from the last 14 days, Backlog on demand), each with the
+PRs that mention its key and its space, and Move to, Assign to me and
+Comment, which write to Jira only when clicked. Its token is the Keychain
+item `herdr-jira` (account: email, comment: site). Show a
 screen with `layout.select {stack: "screens", child: "pulse"}`; add one
 as another child of `screens` plus a row in the rail), and as examples `terminals` ("Terminals": tabs in
 the title bar, panes as cards, a space picker) and `win98`
