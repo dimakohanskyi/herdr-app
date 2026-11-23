@@ -47,7 +47,7 @@ async function api(cred, method, path, body) {
   if (!r.ok) {
     let msg = text.slice(0, 200);
     try { const j = JSON.parse(text); msg = [...(j.errorMessages ?? []), ...Object.values(j.errors ?? {})].join(" ") || msg; } catch {}
-    throw new Error(r.status === 401 ? "Jira refused the token (401). Make a new one and save it to Keychain again." : `Jira ${r.status}: ${msg}`);
+    throw new Error(r.status === 401 ? "Jira refused the token (401). Make a classic API token (not \"with scopes\") at id.atlassian.com and save it to Keychain again." : `Jira ${r.status}: ${msg}`);
   }
   return text ? JSON.parse(text) : null;
 }
@@ -55,6 +55,8 @@ async function api(cred, method, path, body) {
 async function loadIssues(cred) {
   const jql = `assignee = currentUser() AND (statusCategory != Done OR resolved >= -${DONE_DAYS}d) ORDER BY updated DESC`;
   const fields = ["summary", "status", "issuetype", "project", "updated", "resolutiondate"];
+  // Search answers a rejected token as an anonymous visitor (200, no tickets): ask who we are first.
+  await api(cred, "GET", "/rest/api/3/myself");
   let issues = [], next;
   // ponytail: up to 300 tickets; raise the page count if that's ever not enough.
   for (let page = 0; page < 3; page++) {
