@@ -4,14 +4,15 @@ import { exec, theme, window, spaces, run, openOverlay, shared, setShared, check
 
 // Jira: my tickets from Jira Cloud as a Kanban board, linked to GitHub PRs and Herdr spaces.
 // Setup is one Keychain item (the token), holding the email as account and the site as comment:
-//   security add-generic-password -s herdr-jira -a you@example.com -j yoursite.atlassian.net -w
+//   security add-generic-password -U -s herdr-jira -a you@example.com -j yoursite.atlassian.net -w "$(pbpaste)"
+// with the token copied: security's own password prompt stops at 128 characters, and tokens are longer.
 
 const SERVICE = "herdr-jira";
 const COLUMNS = ["To Do", "In Progress", "In Review", "Stage QA", "Done"];
 const DONE_DAYS = 14;
 const REFRESH_MS = 5 * 60 * 1000;
 const CACHE = "jira.cache.v1";
-const SETUP = `security add-generic-password -s ${SERVICE} -a you@example.com -j yoursite.atlassian.net -w`;
+const SETUP = `security add-generic-password -U -s ${SERVICE} -a you@example.com -j yoursite.atlassian.net -w "$(pbpaste)"`;
 
 // ponytail: one Jira site (the first Keychain item); a list of items when a second site appears.
 async function credentials() {
@@ -365,7 +366,7 @@ export default class Jira extends View {
     const t = theme(), all = this.issues ?? [];
     let body;
     if (this.setup && !this.issues) body = this.message(t, "Connect Jira",
-      "Make an API token at id.atlassian.com → Security → API tokens. Then run this in a terminal with your email and site, and paste the token when asked. Click Refresh after.", SETUP);
+      "Make an API token at id.atlassian.com → Security → API tokens. Copy it, then run this in a terminal with your email and site (it reads the token from the clipboard). Click Refresh after.", SETUP);
     else if (!this.issues) body = this.error ? this.message(t, "Can't reach Jira", this.error) : this.message(t, "Loading your tickets…", "Asking Jira for everything assigned to you");
     else {
       const list = this.project === "all" ? all : all.filter((i) => i.project === this.project);
