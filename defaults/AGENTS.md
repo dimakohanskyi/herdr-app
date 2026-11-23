@@ -180,7 +180,13 @@ that starts a terminal or any installed agent, `new-menu`; panes as cards
 with a header; Files and Changes panels on the right, `files` and
 `changes`, opened from the tab bar and remembered per space (which ones:
 shared `"workspace.panels"`, set by the welcome); a status bar,
-`workspace-status`), and as examples `terminals` ("Terminals": tabs in
+`workspace-status`; a screens rail on the far left, `rail`, that switches
+the `screens` stack between `workspace` (all of the above) and `pulse`:
+the `pulse` mod, the person's GitHub PRs, reviews, blockers and lines
+changed across every account `gh auth status` lists, by account and for
+7, 30 or 90 days; it runs `gh` and refreshes every 5 minutes. Show a
+screen with `layout.select {stack: "screens", child: "pulse"}`; add one
+as another child of `screens` plus a row in the rail), and as examples `terminals` ("Terminals": tabs in
 the title bar, panes as cards, a space picker) and `win98`
 ("Herdr 98": a whole desktop in one mod, `win98`). Add a layout by
 writing a new file. The Files panel supports Windows folder paths with spaces,
