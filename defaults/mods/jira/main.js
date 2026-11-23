@@ -102,17 +102,29 @@ export function spacesFor(issue, list) {
   return { working, home };
 }
 
-// PRs mentioning the key, from every gh account (same accounts as Pulse).
+// PRs mentioning the key, from every gh account (same accounts as Pulse), in that
+// account's own repos and its organisations' only: a bare key also matches strangers'
+// PRs all over GitHub ("HDE-314" finds "HDE-CRD-0002").
 async function prsFor(key) {
   const st = await exec("gh", ["auth", "status", "--json", "hosts"]).catch(() => null);
   const accounts = Object.values(JSON.parse(st?.stdout || "{}").hosts ?? {}).flat().filter((a) => a.state === "success");
-  const seen = new Map();
+  const exact = new RegExp(`\\b${key}\\b`, "i"), seen = new Map();
   await Promise.all(accounts.map(async (a) => {
-    const r = await exec("sh", ["-c", 't="$(gh auth token -h "$1" -u "$2")" || exit 1; shift 2; GH_TOKEN="$t" exec gh "$@"', "sh", a.host, a.login,
-      "search", "prs", key, "--json", "number,title,url,state,repository", "--limit", "10"], { timeout: 30000 }).catch(() => null);
-    try { for (const p of JSON.parse(r?.stdout || "[]")) if (!seen.has(p.url)) seen.set(p.url, p); } catch {}
+    const gh = (...args) => exec("sh", ["-c", 't="$(gh auth token -h "$1" -u "$2")" || exit 1; shift 2; GH_TOKEN="$t" exec gh "$@"', "sh", a.host, a.login, ...args],
+      { timeout: 30000 }).catch(() => null);
+    const orgs = (await gh("api", "user/orgs", "--jq", ".[].login"))?.stdout ?? "";
+    const owners = [a.login, ...orgs.split("\n").filter(Boolean)];
+    const r = await gh("search", "prs", `"${key}"`, ...owners.flatMap((o) => ["--owner", o]), "--json", "number,title,url,state,repository,body", "--limit", "30");
+    try {
+      for (const p of JSON.parse(r?.stdout || "[]")) {
+        if (seen.has(p.url) || !exact.test(`${p.title}\n${p.body ?? ""}`)) continue;
+        seen.set(p.url, { ...p, inTitle: exact.test(p.title), body: undefined });
+      }
+    } catch {}
   }));
-  return [...seen.values()];
+  // The ticket's own PRs (key in the title) first, then ones that only mention it; open before closed.
+  const rank = (p) => (p.inTitle ? 0 : 2) + (p.state === "OPEN" ? 0 : 1);
+  return [...seen.values()].sort((x, y) => rank(x) - rank(y) || y.number - x.number);
 }
 
 const tint = (c, a) => `${(c ?? "#888888").slice(0, 7)}${a}`;
@@ -310,47 +322,59 @@ export default class Jira extends View {
       })));
   }
 
+  // The selected ticket, in a panel beside the board: actions first, then what links to it.
   detail(t, i) {
     const { working, home } = spacesFor(i, spaces());
     const repo = repoOf(i.title), branch = branchFor(i);
+    const goSpace = () => { run("space.select", { id: working.id }); run("layout.select", { stack: "screens", child: "workspace" }); };
     const link = (id, icon, text, sub, action) => h_flex().id(id).min_w(0).gap(8).px(8).py(6).rounded(6).border(1).border_color(t.border).items_center()
       .when(Boolean(action), (el) => el.cursor_pointer().hover((s) => s.bg(t.hover)).on_click(action))
-      .child(div().w(22).text_size(10.5).font_semibold().text_color(t.muted).child(icon))
+      .child(div().w(22).flex_none().text_size(10.5).font_semibold().text_color(t.muted).child(icon))
       .child(v_flex().flex_1().min_w(0).child(div().text_size(12.5).truncate().child(text)).when(Boolean(sub), (el) => el.child(div().text_size(11).text_color(t.muted).truncate().child(sub))));
-    const prs = this.prs == null
-      ? [div().text_size(11.5).text_color(t.dim).child("Looking for PRs…")]
-      : this.prs.length ? this.prs.map((p) => link(`pr-${p.url}`, "PR", p.title, `${p.repository?.nameWithOwner ?? ""} #${p.number} · ${p.state.toLowerCase()}`, () => openUrl(p.url)))
-        : [link("pr-none", "PR", `No PR mentions ${i.key} yet`, null, null)];
-    const space = working
-      ? link("space", "▤", working.name, working.branch ? `branch ${working.branch}` : null, () => { run("space.select", { id: working.id }); run("layout.select", { stack: "screens", child: "workspace" }); })
-      : link("space", "▤", `No space on ${i.key} yet`, home ? `"Start work" makes ${branch} in ${home.name}` : repo ? `no space named ${repo}` : null, null);
+    const section = (text, note) => h_flex().gap(6).pt(4).items_center().text_size(11).font_medium()
+      .child(div().text_color(t.dim).child(text)).when(Boolean(note), (el) => el.child(div().text_color(t.dim).child(note)));
+    const own = (this.prs ?? []).filter((p) => p.inTitle), mention = (this.prs ?? []).filter((p) => !p.inTitle);
+    const prLink = (p) => link(`pr-${p.url}`, "PR", p.title, `${p.repository?.nameWithOwner ?? ""} #${p.number} · ${p.state.toLowerCase()}`, () => openUrl(p.url));
     const start = () => {
       run("layout.select", { stack: "screens", child: "workspace" });
       openOverlay({ mod: "worktree", kind: "dialog", width: 460, height: 280, props: { space: home.id, branch } });
     };
-    return v_flex().min_w(0).border(1).border_color(t.border).rounded(8).bg(t.background).p(12).gap(10)
-      .child(h_flex().gap(8).items_center().min_w(0)
+    return v_flex().id("detail").w(420).flex_none().h_full().overflow_y_scrollbar().bg(t.background).border_l(1).border_color(t.border).p(14).gap(10)
+      .child(h_flex().gap(8).items_center()
         .child(div().font_semibold().text_color(t.muted).child(i.key))
-        .child(div().flex_1().min_w(0).font_semibold().truncate().child(i.title))
-        .child(this.pill(i.status, this.colColor(t, columnOf(i)))))
-      .child(v_flex().gap(6).children([...prs, space]))
-      .child(h_flex().gap(6).items_center()
-        .when(Boolean(working), (el) => el.child(this.btn(t, "go-space", "Open in space", () => { run("space.select", { id: working.id }); run("layout.select", { stack: "screens", child: "workspace" }); }, true)))
+        .child(this.pill(i.status, this.colColor(t, columnOf(i))))
+        .child(div().flex_1())
+        .child(div().id("close-detail").size(24).flex().items_center().justify_center().rounded(6).cursor_pointer().text_color(t.muted)
+          .hover((s) => s.bg(t.hover).text_color(t.foreground)).tooltip("Close")
+          .on_click((_e, cx) => { this.selected = null; cx.notify(); }).child("×")))
+      .child(div().text_size(15).font_semibold().child(i.title))
+      .child(div().text_size(11.5).text_color(t.muted).child(`${i.type ?? "Ticket"} · ${i.projectName ?? i.project} · updated ${ago(i.updated)} ago`))
+      .child(h_flex().flex_wrap().gap(6).items_center()
+        .when(Boolean(working), (el) => el.child(this.btn(t, "go-space", "Open in space", goSpace, true)))
         .when(!working && Boolean(home), (el) => el.child(this.btn(t, "start", "Start work", start, true)))
         .child(this.btn(t, "open-jira", "Open in Jira", () => openUrl(`https://${this.site}/browse/${i.key}`)))
         .child(this.btn(t, "move", this.moveOpen ? "Move to ▴" : "Move to ▾", (_e, cx) => this.openMove(cx)))
-        .child(this.btn(t, "assign", "Assign to me", (_e, cx) => this.assignToMe(cx)))
-        .when(Boolean(this.busy), (el) => el.child(svg("mods/jira/spinner.svg").size(12).spin(900)))
-        .when(Boolean(this.note), (el) => el.child(div().text_size(11.5).text_color(t.muted).truncate().child(this.note))))
-      .when(Boolean(this.moveOpen), (el) => el.child(h_flex().gap(6).items_center()
+        .child(this.btn(t, "assign", "Assign to me", (_e, cx) => this.assignToMe(cx))))
+      .when(Boolean(this.moveOpen), (el) => el.child(h_flex().flex_wrap().gap(6).items_center()
         .child(div().text_size(11.5).text_color(t.muted).child("Move to:"))
         .children(this.transitions == null ? [div().text_size(11.5).text_color(t.dim).child("loading…")]
           : this.transitions.map((tr) => this.btn(t, `tr-${tr.id}`, tr.to?.name ?? tr.name, (_e, cx) => this.move(tr, cx))))))
+      .when(Boolean(this.busy || this.note), (el) => el.child(h_flex().gap(6).items_center()
+        .when(Boolean(this.busy), (el) => el.child(svg("mods/jira/spinner.svg").size(12).spin(900)))
+        .when(Boolean(this.note), (el) => el.child(div().text_size(11.5).text_color(t.muted).child(this.note)))))
       .child(h_flex().gap(6).items_center()
         .child(div().id("comment").flex_1().min_w(0).h(30).px(10).flex().items_center().rounded(6).border(1).border_color(t.border).cursor_text()
           .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
           .child(Input.new(this.comment).h_full().text_size(12).text_color(t.foreground)))
-        .child(this.btn(t, "send", "Comment", (_e, cx) => this.sendComment(cx))));
+        .child(this.btn(t, "send", "Comment", (_e, cx) => this.sendComment(cx))))
+      .child(section("SPACE"))
+      .child(working
+        ? link("space", "▤", working.name, working.branch ? `branch ${working.branch}` : null, goSpace)
+        : link("space", "▤", `No space on ${i.key} yet`, home ? `"Start work" makes ${branch} in ${home.name}` : repo ? `no space named ${repo}` : null, null))
+      .child(section("PULL REQUESTS", this.prs ? String(own.length) : null))
+      .children(this.prs == null ? [div().text_size(11.5).text_color(t.dim).child("Looking in your repos and organisations…")]
+        : own.length ? own.map(prLink) : [div().text_size(11.5).text_color(t.dim).child(`No PR has ${i.key} in its title yet`)])
+      .when(mention.length > 0, (el) => el.child(section("MENTIONED IN", String(mention.length))).children(mention.map(prLink)));
   }
 
   message(t, title, body, code) {
@@ -371,14 +395,14 @@ export default class Jira extends View {
     else {
       const list = this.project === "all" ? all : all.filter((i) => i.project === this.project);
       const sel = all.find((i) => i.key === this.selected);
-      body = v_flex().id("jira-scroll").flex_1().min_w(0).h_full().overflow_y_scrollbar().p(16).gap(16)
+      const page = v_flex().id("jira-scroll").flex_1().min_w(0).h_full().overflow_y_scrollbar().p(16).gap(16)
         .child(h_flex().gap(10).items_center()
           .child(div().text_size(18).font_semibold().child(this.project === "all" ? "All projects" : this.project))
           .child(div().text_size(12).text_color(t.muted).child(`assigned to me · Done from the last ${DONE_DAYS} days`)))
         .when(Boolean(this.error), (el) => el.child(div().text_size(12).text_color(t.ansi1).child(`Refresh failed: ${this.error}`)))
         .child(this.kpis(t, list))
-        .when(Boolean(sel), (el) => el.child(this.detail(t, sel)))
         .child(this.board(t, list));
+      body = h_flex().flex_1().min_w(0).h_full().child(page).when(Boolean(sel), (el) => el.child(this.detail(t, sel)));
     }
     return h_flex().size_full().bg(t.canvas ?? t.background).text_color(t.foreground)
       .child(this.sidebar(t, all))
