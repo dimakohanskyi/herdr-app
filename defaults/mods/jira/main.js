@@ -249,10 +249,9 @@ export default class Jira extends View {
     const w = window(), lights = w?.platform === "macos" && !w?.fullscreen;
     const open = (list) => list.filter((i) => !["Done", "Backlog"].includes(columnOf(i))).length;
     const projects = [...new Map(all.map((i) => [i.project, i.projectName])).entries()].sort();
-    const row = (id, label, count, on, action, lead) => h_flex().id(id).h(28).px(8).gap(8).items_center().rounded(6).cursor_pointer()
+    const row = (id, label, count, on, action) => h_flex().id(id).h(28).px(8).gap(8).items_center().rounded(6).cursor_pointer()
       .bg(on ? t.selected : t.chrome).text_color(on ? t.foreground : t.muted).hover((s) => s.bg(t.hover).text_color(t.foreground))
-      .on_click(action)
-      .when(Boolean(lead), (el) => el.child(lead))
+      .on_click(action).tooltip(label)
       .child(div().flex_1().min_w(0).truncate().child(label))
       .child(div().text_size(11).text_color(t.dim).child(String(count)));
     const label = (text) => div().px(8).pt(14).pb(4).text_size(11).text_color(t.dim).font_medium().child(text);
@@ -265,8 +264,7 @@ export default class Jira extends View {
         .child(label("PROJECTS"))
         .child(row("p-all", "All projects", open(all), this.project === "all", (_e, cx) => { this.project = "all"; cx.notify(); }))
         .children(projects.map(([k, name]) => row(`p-${k}`, name ? `${k} · ${name}` : k, open(all.filter((i) => i.project === k)), this.project === k,
-          (_e, cx) => { this.project = k; cx.notify(); },
-          div().w(18).text_size(10).font_semibold().text_color(t.muted).child(k.slice(0, 3)))))
+          (_e, cx) => { this.project = k; cx.notify(); })))
         .child(label("SHOW"))
         .child(row("backlog", "Backlog", all.filter((i) => columnOf(i) === "Backlog").length, this.backlog, (_e, cx) => { this.backlog = !this.backlog; cx.notify(); })))
       .child(div().flex_1())
