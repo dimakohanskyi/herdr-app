@@ -1,6 +1,6 @@
 import { View, div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { exec, theme, window, shared, setShared, checking } from "herdr";
+import { exec, theme, window, shared, setShared, checking, layout } from "herdr";
 
 // Pulse: my GitHub PRs, reviews and code volume across every account `gh` is logged into.
 
@@ -145,6 +145,12 @@ function openUrl(url) {
   const p = window()?.platform;
   const [cmd, args] = p === "macos" ? ["open", [url]] : p === "windows" ? ["cmd", ["/c", "start", "", url]] : ["xdg-open", [url]];
   exec(cmd, args).catch(() => null);
+}
+
+function findNode(node, id) {
+  if (node?.id === id) return node;
+  for (const child of node?.children ?? []) { const found = findNode(child, id); if (found) return found; }
+  return null;
 }
 
 export default class Pulse extends View {
@@ -368,8 +374,12 @@ export default class Pulse extends View {
           .child(div().flex_1().min_w(0).child(this.closed(t, s, colors)))
           .child(div().flex_1().min_w(0).child(this.issues(t, s, colors))));
     }
+    // The rail's sidebar button (and cmd-b) hides this screen's sidebar too.
+    const hidden = Boolean(findNode(layout(), "sidebar")?.hidden), w = window();
     return h_flex().size_full().bg(t.canvas ?? t.background).text_color(t.foreground)
-      .child(this.sidebar(t, colors))
+      // Without the sidebar, keep the page clear of the macOS window buttons.
+      .when(hidden && w?.platform === "macos" && !w?.fullscreen, (el) => el.pt(28))
+      .when(!hidden, (el) => el.child(this.sidebar(t, colors)))
       .child(body);
   }
 }

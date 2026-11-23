@@ -40,6 +40,17 @@ export default class Rail extends View {
           .when(count > 0, (el) => el.child(
             div().absolute().top(-4).right(-4).px(4).h(15).rounded(8).bg(t.accent).text_color(t.accent_foreground)
               .text_size(9.5).font_semibold().flex().items_center().child(count > 99 ? "99+" : String(count))));
-      }));
+      }))
+      .child(div().flex_1())
+      .child(div().id("rail-sidebar").mb(12).size(34).flex().items_center().justify_center().rounded(8).cursor_pointer()
+        .tooltip(sidebarHidden() ? "Show sidebar" : "Hide sidebar")
+        .text_color(t.muted).hover((st) => st.bg(t.hover).text_color(t.foreground))
+        .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+        .on_click(() => run("layout.toggle", { id: "sidebar" }))
+        .child(svg("mods/workspace-chrome/panel-left.svg").size(17)));
   }
 }
+
+// One switch for every screen's sidebar: the layout's "sidebar" node (also cmd-b).
+// Pulse and Jira draw their own sidebar and follow the same flag.
+const sidebarHidden = () => Boolean(find(layout(), "sidebar")?.hidden);

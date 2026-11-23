@@ -1,6 +1,6 @@
 import { View, div, svg } from "gpui-kit";
 import { h_flex, v_flex, InputState, Input } from "gpui-base";
-import { exec, theme, window, spaces, run, openOverlay, shared, setShared, checking } from "herdr";
+import { exec, theme, window, spaces, run, openOverlay, shared, setShared, checking, layout } from "herdr";
 
 // Jira: my tickets from Jira Cloud as a Kanban board, linked to GitHub PRs and Herdr spaces.
 // Setup is one Keychain item (the token), holding the email as account and the site as comment:
@@ -121,6 +121,12 @@ function openUrl(url) {
   const p = window()?.platform;
   const [cmd, args] = p === "macos" ? ["open", [url]] : p === "windows" ? ["cmd", ["/c", "start", "", url]] : ["xdg-open", [url]];
   exec(cmd, args).catch(() => null);
+}
+
+function findNode(node, id) {
+  if (node?.id === id) return node;
+  for (const child of node?.children ?? []) { const found = findNode(child, id); if (found) return found; }
+  return null;
 }
 
 export default class Jira extends View {
@@ -377,8 +383,12 @@ export default class Jira extends View {
         .when(Boolean(sel), (el) => el.child(this.detail(t, sel)))
         .child(this.board(t, list));
     }
+    // The rail's sidebar button (and cmd-b) hides this screen's sidebar too.
+    const hidden = Boolean(findNode(layout(), "sidebar")?.hidden), w = window();
     return h_flex().size_full().bg(t.canvas ?? t.background).text_color(t.foreground)
-      .child(this.sidebar(t, all))
+      // Without the sidebar, keep the page clear of the macOS window buttons.
+      .when(hidden && w?.platform === "macos" && !w?.fullscreen, (el) => el.pt(28))
+      .when(!hidden, (el) => el.child(this.sidebar(t, all)))
       .child(body);
   }
 }
