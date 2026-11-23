@@ -507,12 +507,16 @@ fn a_described_mod_leaves_no_folder_behind(cx: &mut TestAppContext) {
 fn brand_leaves_room_for_macos_traffic_lights_only_outside_full_screen(cx: &mut TestAppContext) {
     cx.update(gpui_shell::init);
     let staged = Staged::new();
-    for (fullscreen, inset) in [(false, true), (true, false)] {
+    // The screens rail (52 px) already sits under part of the lights: 76 - 52 = 24.
+    for (fullscreen, rail, inset) in [(false, false, Some(76)), (true, false, None), (false, true, Some(24)), (true, true, None)] {
         let mut values = fixture(true, props(), updates("current", "current"));
         values.insert("window".into(), json!({"platform":"macos","titlebar":"none","fullscreen":fullscreen,"buttons":false}));
+        values.get_mut("layout").unwrap()["children"][0]["hidden"] = json!(!rail);
         let tree = describe_with_values(cx, &staged, "mods/workspace-chrome", values, None).unwrap();
         let root = tree.lines().next().unwrap();
-        assert_eq!(root.contains(".pl[Number(76.0)]"), inset, "fullscreen={fullscreen}: {tree}");
+        for px in [76, 24] {
+            assert_eq!(root.contains(&format!(".pl[Number({px}.0)]")), inset == Some(px), "fullscreen={fullscreen} rail={rail}: {tree}");
+        }
     }
 }
 
@@ -537,7 +541,9 @@ fn tabs_leave_room_for_macos_traffic_lights(cx: &mut TestAppContext) {
         values.insert("window".into(), json!({"platform":platform,"titlebar":titlebar,"fullscreen":fullscreen,"buttons":false}));
         values.get_mut("settings").unwrap()["zoom"] = json!(zoom);
         let layout = values.get_mut("layout").unwrap();
-        layout["children"][0]["size"]["px"] = json!(width);
+        // These cases are about the sidebar alone: hide the screens rail in front of it.
+        layout["children"][0]["hidden"] = json!(true);
+        layout["children"][1]["children"][0]["children"][0]["size"]["px"] = json!(width);
         if !lights {
             layout.as_object_mut().unwrap().remove("traffic_lights");
         }
