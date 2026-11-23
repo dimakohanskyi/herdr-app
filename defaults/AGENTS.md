@@ -190,7 +190,9 @@ Stage QA, Done from the last 14 days, Backlog on demand), each with the
 PRs that mention its key and its space, and Move to, Assign to me and
 Comment, which write to Jira only when clicked. Its token is the Keychain
 item `herdr-jira` (account: email, comment: site). Show a
-screen with `layout.select {stack: "screens", child: "pulse"}`; add one
+screen with `layout.select {stack: "screens", child: "pulse"}`; hide or
+show the rail with `layout.toggle {id: "rail"}` (the sidebar footer's
+Hide screens, `cmd-shift-b` on macOS); add one
 as another child of `screens` plus a row in the rail), and as examples `terminals` ("Terminals": tabs in
 the title bar, panes as cards, a space picker) and `win98`
 ("Herdr 98": a whole desktop in one mod, `win98`). Add a layout by

@@ -11,6 +11,8 @@ function find(node, id) {
   return null;
 }
 
+const rail = () => find(layout(), "rail");
+
 // The sidebar's rail goes by its width, not a flag: dragging its edge narrows it too.
 const narrow = () => (find(layout(), "sidebar")?.size?.px ?? Infinity) < 160;
 
@@ -43,11 +45,14 @@ export default class WorkspaceChrome extends View {
         .when(collapsed, el => el.px(0).items_center())
         .child(row("settings", "settings", "Settings", false, () => run("app.settings"))
           .when(Boolean(updates().app.ready), el => el.child(collapsed ? ready.absolute().top(5).right(6) : ready)))
-        .child(row("machine", "plus", "Add machine", true, () => run("mod.open", { name: "machine-add" })));
+        .child(row("machine", "plus", "Add machine", true, () => run("mod.open", { name: "machine-add" })))
+        // The screens rail (Workspace, Pulse, Jira): hidden from here so the way back stays visible.
+        .when(Boolean(rail()), el => el.child(row("rail-toggle", "panel-left", rail().hidden ? "Show screens" : "Hide screens", true,
+          () => run("layout.toggle", { id: "rail" }))));
     }
     return h_flex().size_full().bg(t.chrome).pl(collapsed ? 6 : 14).pr(10).gap(4).items_center().text_size(13.5)
       // The screens rail, if the layout has one, already sits under part of the traffic lights.
-      .when(window()?.platform === "macos" && !window()?.fullscreen && !collapsed, el => el.pl(Math.max(14, 76 - (find(layout(), "rail")?.size?.px ?? 0))))
+      .when(window()?.platform === "macos" && !window()?.fullscreen && !collapsed, el => el.pl(Math.max(14, 76 - (rail()?.hidden ? 0 : rail()?.size?.px ?? 0))))
       .when(!collapsed, el => el.child(h_flex().flex_1().gap(8).items_center().child(image("frame/welcome/herdr.png").size(20).rounded(5)).child(div().font_semibold().text_color(t.foreground).child("Herdr"))))
       .when(!collapsed, el => el.child(this.button("search", svg("mods/workspace-chrome/search.svg").size(15), () => run("mod.open", { name: "picker" }))))
       // On the macOS rail the traffic lights fill the row; the agents list's » unfolds it.
