@@ -90,7 +90,7 @@
                   "id": "sidebar-footer",
                   "type": "block",
                   "size": {
-                    "px": 69
+                    "px": 97
                   },
                   "content": {
                     "mod": "workspace-chrome",
@@ -206,6 +206,13 @@
           "type": "block",
           "content": {
             "mod": "pulse"
+          }
+        },
+        {
+          "id": "jira",
+          "type": "block",
+          "content": {
+            "mod": "jira"
           }
         }
       ]

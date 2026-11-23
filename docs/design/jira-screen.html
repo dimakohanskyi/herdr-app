@@ -1,0 +1,470 @@
+<title>Herdr Jira</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: same design-review doc as pulse-dashboard.html. Data source options, then one interactive mockup in Herdr's chrome, then linking + questions. */
+:root{
+  --bg:#f4f4f2; --panel:#ffffff; --side:#f7f7f5; --line:#e4e3df; --fg:#1c1c1a; --muted:#76746e; --faint:#a9a7a0;
+  --accent:#d4553a; --accent-soft:#fbe9e4;
+  --ok:#2f8a4c; --ok-soft:#e3f2e7; --warn:#b7791f; --warn-soft:#fbf0dc; --bad:#c23a3a; --bad-soft:#f9e2e2; --merged:#7c4dc4; --merged-soft:#eee6fa; --info:#3b6fd4; --info-soft:#e4ecfa;
+  --sans:"Inter",-apple-system,"Segoe UI",sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#151514; --panel:#1d1d1b; --side:#191918; --line:#2e2d2a; --fg:#ecebe7; --muted:#9a9891; --faint:#625f59;
+  --accent:#ec7458; --accent-soft:#3a2320; --ok:#5cc27d; --ok-soft:#1d3324; --warn:#e3a94a; --warn-soft:#3a2f1a; --bad:#f07272; --bad-soft:#3d2121; --merged:#a985f0; --merged-soft:#2d2440; --info:#7aa2f0; --info-soft:#1f2a40; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#151514; --panel:#1d1d1b; --side:#191918; --line:#2e2d2a; --fg:#ecebe7; --muted:#9a9891; --faint:#625f59;
+  --accent:#ec7458; --accent-soft:#3a2320; --ok:#5cc27d; --ok-soft:#1d3324; --warn:#e3a94a; --warn-soft:#3a2f1a; --bad:#f07272; --bad-soft:#3d2121; --merged:#a985f0; --merged-soft:#2d2440; --info:#7aa2f0; --info-soft:#1f2a40; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.5;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-block:40px 80px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:56px}
+h1{font-size:30px;letter-spacing:-.02em;margin:0;text-wrap:balance}
+h2{font-size:20px;letter-spacing:-.01em;margin:0 0 4px;text-wrap:balance}
+h3{font-size:14px;margin:0}
+p{margin:0;max-width:68ch}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.lead{color:var(--muted);font-size:15px}
+.stack{display:grid;gap:14px}
+code,.mono{font-family:var(--mono);font-size:12px}
+code{background:var(--side);border:1px solid var(--line);border-radius:4px;padding:1px 5px;overflow-wrap:anywhere}
+.example{font-size:11px;color:var(--muted)}
+
+/* options */
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+.opt{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:10px;align-content:start;min-width:0}
+.opt.rec{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.tag{justify-self:start;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--side);color:var(--muted)}
+.opt.rec .tag{background:var(--accent-soft);color:var(--accent)}
+.opt ul{margin:0;padding-left:18px;color:var(--muted);font-size:13px;display:grid;gap:2px}
+.opt .pro{color:var(--fg)}
+.cmp{width:100%;border-collapse:collapse;font-size:12px}
+.cmp th,.cmp td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.cmp th{font-weight:500;color:var(--muted);font-size:11px}
+.cmp td:first-child{font-weight:500;white-space:nowrap}
+.cmp tr:last-child td{border-bottom:0}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+
+/* herdr window mockup */
+.win{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:grid;grid-template-columns:48px 210px minmax(0,1fr);min-height:680px;box-shadow:0 10px 40px rgba(0,0,0,.06);position:relative}
+.rail{background:var(--bg);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 0}
+.rail button{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font:inherit;font-size:14px;cursor:pointer;position:relative;display:grid;place-items:center}
+.rail button.on{background:var(--fg);color:var(--panel);border-color:var(--fg)}
+.rail button .b{position:absolute;top:-5px;right:-5px;background:var(--accent);color:#fff;font-size:9px;font-weight:700;border-radius:99px;padding:0 4px;line-height:14px}
+.rail .gap{flex:1}
+.side{background:var(--side);border-right:1px solid var(--line);padding:12px 8px;display:grid;gap:3px;align-content:start;font-size:13px;min-width:0}
+.brand{font-weight:700;padding:4px 6px 10px;display:flex;gap:6px;align-items:center}
+.navitem{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;border:0;background:none;color:inherit;font:inherit;text-align:left;width:100%;min-width:0}
+.navitem:hover{background:var(--line)}
+.navitem.on{background:var(--line);font-weight:600}
+.navitem .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.navitem .cnt{margin-left:auto;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.navitem.proj{padding-left:24px;font-size:12px}
+.navitem .sq{width:14px;height:14px;border-radius:3px;flex:none;display:grid;place-items:center;color:#fff;font-size:8px;font-weight:700}
+.sidelabel{font-size:11px;color:var(--muted);padding:10px 8px 2px;display:flex;justify-content:space-between}
+.addrow{margin:6px 4px 0;padding:4px 8px;border:1px dashed var(--faint);border-radius:6px;color:var(--muted);font-size:12px}
+.main{min-width:0;display:grid;grid-template-rows:auto 1fr}
+.topbar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.topbar .title{font-weight:600}
+.topbar .sp{flex:1}
+.btn{font:inherit;font-size:12px;border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:3px 10px;border-radius:6px;cursor:pointer}
+.btn.pri{color:var(--accent);border-color:var(--accent)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.content{padding:16px;display:grid;gap:16px;align-content:start;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.kpi{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:2px;min-width:0}
+.kpi .l{font-size:11px;color:var(--muted)}
+.kpi .v{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.kpi .d{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.kpi.bad{border-color:var(--bad);background:var(--bad-soft)}
+.kpi.attn{border-color:var(--warn);background:var(--warn-soft)}
+.card{border:1px solid var(--line);border-radius:8px;min-width:0}
+.card header{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.card header .n{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.card header .sp{flex:1}
+.wid{font-family:var(--mono);font-size:10px;color:var(--faint)}
+.sprint{padding:12px;display:grid;gap:8px}
+.bar{display:flex;height:10px;border-radius:99px;overflow:hidden;background:var(--line);gap:2px}
+.bar i{display:block;height:100%}
+.legend{display:flex;gap:12px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+.legend span{display:flex;align-items:center;gap:4px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.board{display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
+.decided{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.decided li{display:flex;gap:8px;align-items:baseline}
+.decided li::before{content:"✓";color:var(--ok);font-weight:700}
+.tk.qa{border-left-color:var(--merged)}
+.col{border-right:1px solid var(--line);padding:8px;display:grid;gap:6px;align-content:start;min-width:0}
+.col:last-child{border-right:0}
+.col h4{margin:0 0 2px;font-size:12px;display:flex;gap:6px;align-items:center}
+.col h4 .c{font-size:11px;color:var(--muted);font-weight:500}
+.tk{border:1px solid var(--line);border-left:3px solid var(--line);border-radius:6px;padding:6px 8px;display:grid;gap:3px;background:var(--panel);font-size:12px;min-width:0;cursor:pointer;text-align:left;font:inherit;font-size:12px;color:inherit;width:100%}
+.tk:hover{border-color:var(--faint)}
+.tk.sel{box-shadow:0 0 0 2px var(--accent-soft);border-color:var(--accent)}
+.tk .t{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tk .meta{display:flex;gap:6px;color:var(--muted);font-size:11px;flex-wrap:wrap;align-items:center}
+.key{font-family:var(--mono);font-size:10.5px;color:var(--fg)}
+.tk.todo{border-left-color:var(--faint)}.tk.prog{border-left-color:var(--info)}.tk.review{border-left-color:var(--warn)}.tk.done{border-left-color:var(--ok)}.tk.blocked{border-left-color:var(--bad)}
+.pill{font-size:10px;padding:0 6px;border-radius:99px;font-weight:600;white-space:nowrap}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}.pill.warn{background:var(--warn-soft);color:var(--warn)}.pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.m{background:var(--merged-soft);color:var(--merged)}.pill.i{background:var(--info-soft);color:var(--info)}.pill.n{background:var(--side);color:var(--muted);border:1px solid var(--line)}
+.sp-pt{font-family:var(--mono);font-size:10px;border:1px solid var(--line);border-radius:4px;padding:0 4px;color:var(--muted)}
+/* detail row */
+.detail{padding:12px;display:grid;gap:10px}
+.dhead{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.dhead .key{font-size:12px}
+.dhead b{font-size:14px}
+.links{display:grid;gap:6px}
+.lk{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12px}
+.lk .ic{font-family:var(--mono);font-size:11px;color:var(--muted);width:18px;text-align:center}
+.lk .tx{min-width:0;display:grid}
+.lk .tx span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lk .tx small{color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lk .why{font-size:10px;color:var(--faint);font-family:var(--mono)}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.toast{position:absolute;right:16px;bottom:16px;background:var(--fg);color:var(--panel);font-size:12px;padding:8px 12px;border-radius:8px;max-width:min(360px,calc(100% - 32px));box-shadow:0 8px 24px rgba(0,0,0,.2);opacity:0;transform:translateY(6px);transition:.2s;pointer-events:none;font-family:var(--mono)}
+.toast.on{opacity:1;transform:none}
+
+/* notes */
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}
+.note{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:10px;align-content:start;min-width:0}
+.note ul,.note ol{margin:0;padding-left:18px;display:grid;gap:4px}
+.q{display:grid;gap:8px}
+.q li::marker{color:var(--accent);font-weight:700}
+.chain{display:grid;grid-template-columns:repeat(5,auto);align-items:center;justify-content:start;gap:8px;font-size:12px}
+.chain .n{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 10px;display:grid;gap:2px;min-width:0}
+.chain .n small{color:var(--muted);font-size:11px}
+.chain .n.k{border-color:var(--accent);background:var(--accent-soft)}
+.chain .ar{color:var(--faint)}
+
+@media (max-width:900px){
+  .win{grid-template-columns:1fr}.side,.rail{display:none}
+  .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .board{grid-template-columns:repeat(2,minmax(0,1fr))}.col{border-bottom:1px solid var(--line)}
+  .col:nth-child(2){border-right:0}.col:nth-child(-n+2){border-bottom:1px solid var(--line)}
+  .chain{grid-template-columns:1fr}.chain .ar{transform:rotate(90deg);justify-self:start;padding-left:16px}
+}
+@media (max-width:520px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.board{grid-template-columns:1fr}.col{border-right:0;border-bottom:1px solid var(--line)}}
+</style>
+
+<div class="wrap">
+
+<header class="stack">
+  <div class="eyebrow">dkt_herdr · design draft · not implemented</div>
+  <h1>Herdr Jira</h1>
+  <p class="lead">A screen on the icon rail, beside Workspace and Pulse, that shows my Jira work: what is assigned to me, what is stuck, how my board is moving. Each ticket is joined to its GitHub PRs and its Herdr space through the issue key (<code>HDE-314</code>), so one click takes me from a ticket to the terminal where I'm working on it.</p>
+  <p class="example">Pulse answers "where do my PRs stand?". Jira answers "what am I supposed to be doing, and how far along is it?". Weekly reports keep coming from Jira; this screen only makes the same tickets visible while I work.</p>
+  <div class="note" style="max-width:760px">
+    <div class="eyebrow">Decided · Nov 23</div>
+    <ul class="decided">
+      <li>Jira Cloud (<code>*.atlassian.net</code>)</li>
+      <li>All projects I'm assigned in, not only one</li>
+      <li>No story points: counts of tickets instead</li>
+      <li>Kanban board, same columns as on Jira: To Do · In Progress · In Review · Stage QA · Done (Backlog stays in the sidebar)</li>
+      <li>Read and write: move a ticket between columns, comment, assign, from Herdr</li>
+      <li>"Blocked" is a label on the ticket, not a status</li>
+      <li>The Jira API token lives in the Mac's Keychain</li>
+      <li>Herdr changes a ticket only when you click or move it, never on its own</li>
+      <li>First version skips the blocked label; add it later</li>
+    </ul>
+  </div>
+</header>
+
+<section class="stack">
+  <div><div class="eyebrow">1 · Data source</div><h2>Four ways for a mod to read Jira</h2>
+  <p class="lead">A mod can <code>fetch</code> URLs and <code>exec</code> programs, with no HTML and no built-in secret store. That rules out anything that needs a browser inside Herdr and makes "where does the token live?" the main question.</p></div>
+  <div class="opts">
+    <article class="opt rec">
+      <span class="tag">A · REST API v3 + API token · recommended</span>
+      <h3>Direct <code>fetch</code> to <code>/rest/api/3/search/jql</code> with Basic auth (email:token)</h3>
+      <ul>
+        <li class="pro">No extra program: the mod calls Jira itself</li>
+        <li class="pro">You create one API token on id.atlassian.com (it works like a password for scripts) and save it once in the Mac's built-in password storage, Keychain. The screen reads it from there, so it is never written in a plain file.</li>
+        <li class="pro">Several sites are just several <code>{site, email}</code> entries, like Pulse's gh accounts</li>
+        <li class="pro">Agile API (<code>/rest/agile/1.0/…</code>) for boards and sprints, same token</li>
+        <li>Token is broad (acts as me); create a dedicated one, scoped if the site allows it</li>
+      </ul>
+    </article>
+    <article class="opt">
+      <span class="tag">B · jira CLI via exec</span>
+      <h3><code>ankitpokhrel/jira-cli</code>: <code>jira issue list --raw</code></h3>
+      <ul>
+        <li class="pro">It handles login, its own config and paging</li>
+        <li class="pro">Handy from a terminal too</li>
+        <li>An extra install, and its JSON follows the CLI's version</li>
+        <li>One config file per site; <code>exec</code> takes no env, so each call is <code>sh -c 'JIRA_CONFIG_FILE=… jira …'</code></li>
+        <li>No sprint/board data beyond what the CLI exposes; still needs the same API token</li>
+      </ul>
+    </article>
+    <article class="opt">
+      <span class="tag">C · Atlassian OAuth 2.0 (3LO)</span>
+      <h3>Register an app, sign in through the browser, refresh tokens</h3>
+      <ul>
+        <li class="pro">Fine-grained scopes, read-only possible</li>
+        <li class="pro"><code>accessible-resources</code> lists every site at once</li>
+        <li>Needs a registered app, client secret and a redirect catcher (a local port or a custom URL scheme)</li>
+        <li>Rotating refresh tokens to store and renew: much more code for one user</li>
+      </ul>
+    </article>
+    <article class="opt">
+      <span class="tag">D · Atlassian MCP / Rovo</span>
+      <h3>Ask an agent with the Atlassian connector</h3>
+      <ul>
+        <li class="pro">Already connected in my Claude setup (it feeds the weekly report)</li>
+        <li>Not reachable from a mod: it lives in the agent, not in Herdr</li>
+        <li>Good for "write my report", not for a live page that refreshes</li>
+      </ul>
+    </article>
+  </div>
+
+  <div class="tbl"><table class="cmp">
+    <thead><tr><th></th><th>A · REST + token</th><th>B · jira CLI</th><th>C · OAuth</th></tr></thead>
+    <tbody>
+      <tr><td>Auth storage</td><td>Keychain item per site; mod reads it via <code>security</code></td><td>CLI config + <code>JIRA_API_TOKEN</code> or its keychain entry</td><td>Refresh token in Keychain, renewed by the mod</td></tr>
+      <tr><td>Multiple sites</td><td>List of <code>{site, email}</code> in the mod's settings</td><td>One config file per site</td><td>All sites from one sign-in</td></tr>
+      <tr><td>Rate limits</td><td colspan="3">Jira Cloud limits by cost per user, with <code>429</code> + <code>Retry-After</code>. One JQL search per site every few minutes (≤ 100 issues, only the fields the page needs) is far below it. Back off on 429 and keep the last result cached.</td></tr>
+      <tr><td>Paging</td><td><code>nextPageToken</code> from <code>search/jql</code></td><td>handled</td><td>same as A</td></tr>
+      <tr><td>Setup for me</td><td>Create token, run one <code>security add-generic-password</code></td><td>Install CLI, <code>jira init</code> per site</td><td>Register app, implement sign-in</td></tr>
+      <tr><td>Code in the mod</td><td>Small</td><td>Small + JSON parsing of CLI output</td><td>Large</td></tr>
+    </tbody>
+  </table></div>
+  <p class="example">Selecting sites works like Pulse's accounts: the sidebar lists each site with its projects nested under it, "All sites" merges them, a click narrows to one site or one project. A site entry is <code>{ "site": "acme.atlassian.net", "email": "…", "projects": ["HDS","PLAT"], "pointsField": "customfield_10016" }</code>.</p>
+</section>
+
+<section class="stack">
+  <div><div class="eyebrow">2 · The page</div><h2>Jira on the icon rail: projects and filters in the sidebar, your Kanban columns in the main area</h2>
+  <p class="lead">Click projects and saved filters to narrow the page. Click a ticket to see its linked PRs, its space, and the actions that write back to Jira. <span class="example">Tickets are modelled on your board's style but are example data; project names other than HDE are placeholders.</span></p></div>
+
+  <div class="win" id="win">
+    <nav class="rail" aria-label="Screens">
+      <button title="Workspace (⌘1)">▤</button>
+      <button title="Pulse (⌘2)">◉<span class="b">4</span></button>
+      <button class="on" title="Jira (⌘3)">◆<span class="b" id="railB">1</span></button>
+      <button title="Agent time (⌘4)">◷</button>
+      <span class="gap"></span>
+      <button title="All screens">⋯</button>
+    </nav>
+    <nav class="side" aria-label="Jira sidebar">
+      <div class="brand">◆ Jira</div>
+      <div class="sidelabel"><span>Sites &amp; projects</span></div>
+      <div id="sites" style="display:grid;gap:2px"></div>
+      <div class="addrow">+ Add site</div>
+      <div class="sidelabel"><span>Filters</span><span class="mono" style="font-size:10px">JQL</span></div>
+      <div id="filters" style="display:grid;gap:2px"></div>
+    </nav>
+
+    <div class="main">
+      <div class="topbar">
+        <span class="title" id="title">All sites</span>
+        <span class="pill n" id="fname">My open</span>
+        <span class="sp"></span>
+        <span class="example">synced 3 min ago</span>
+        <button class="btn">Last 14 days ▾</button>
+        <button class="btn">Refresh</button>
+      </div>
+      <div class="content">
+        <div class="kpis" id="kpis"></div>
+
+        <section class="card">
+          <header><h3>My flow</h3><span class="n" id="sprN"></span><span class="sp"></span><span class="wid">widget: flow</span></header>
+          <div class="sprint" id="sprint"></div>
+        </section>
+
+        <section class="card">
+          <header><h3>My board</h3><span class="n" id="boardN"></span><span class="sp"></span><span class="wid">widget: jira-board</span></header>
+          <div class="board" id="board"></div>
+        </section>
+
+        <section class="card">
+          <header><h3>Ticket</h3><span class="sp"></span><span class="wid">widget: ticket-links</span></header>
+          <div class="detail" id="detail"></div>
+        </section>
+      </div>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+  </div>
+</section>
+
+<section class="stack">
+  <div><div class="eyebrow">3 · Linking Jira ↔ PRs ↔ spaces</div><h2>The issue key is the join</h2>
+  <p class="lead">My spaces already show branch labels like <code>HDE-314</code>, and PR titles start with the key. The mod reads keys out of text with one pattern, <code>\b[A-Z][A-Z0-9]+-\d+\b</code>, limited to the project keys of my configured sites (so <code>UTF-8</code> or <code>SHA-256</code> never match).</p></div>
+  <div class="chain">
+    <div class="n k"><b class="key">HDE-314</b><small>Jira ticket</small></div><span class="ar">→</span>
+    <div class="n"><b class="mono">feat/HDE-314-pagination</b><small>git branch</small></div><span class="ar">→</span>
+    <div class="n"><b>go-gql-api · HDE-314</b><small>Herdr space (worktree)</small></div>
+  </div>
+  <div class="cols">
+    <div class="note">
+      <h3>Where keys are found</h3>
+      <ul>
+        <li><b>PRs</b>: per gh account (same as Pulse), <code>gh search prs --author=@me "HDE-314"</code> matches titles and bodies; the head branch name is in the result (<code>headRefName</code>), so a PR titled "Pagination" on branch <code>feat/HDE-314-…</code> still links.</li>
+        <li><b>Spaces</b>: <code>spaces()</code> gives each space's name and its terminals' folders; <code>git branch --show-current</code> per folder (the spaces sidebar already does this) gives the branch. A key in either links the space.</li>
+        <li><b>Title prefix</b>: your tickets start with the repo, like <code>[go-gql-api] - finality watermark</code>. That prefix picks the repo, and so the space, even before a branch exists: "Start work" knows where to make the worktree.</li>
+        <li><b>Jira itself</b>: your board already shows PR icons on tickets, so the GitHub for Jira app is installed, the ticket's development panel already knows its PRs. Its API is not public, so treat it as a bonus, not the source.</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h3>What the links make possible</h3>
+      <ul>
+        <li><b>Open in space</b>: a linked space → <code>space.select {id}</code>. No space but a known repo → open the <code>worktree</code> mod with <code>{branch: "feat/HDE-314-…"}</code> to make one.</li>
+        <li><b>Start work</b>: on a To Do ticket, suggest the branch name <code>feat/HDE-315-finality-watermark</code> and create the worktree space.</li>
+        <li><b>Mismatch hints</b>: PR merged but ticket still In Review; ticket Done but PR still open.</li>
+        <li><b>Pulse</b> gets the same lookup in reverse: a PR card shows its ticket's status.</li>
+        <li>One shared index (<code>setShared("issueLinks", …)</code>) so Pulse, Jira and the spaces sidebar don't each scan.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="cols">
+  <div class="note">
+    <div class="eyebrow">4 · Calls behind the page</div>
+    <h2>One search per site</h2>
+    <ul>
+      <li>Tickets, every project: <code>POST /rest/api/3/search/jql</code> with <code>jql: "assignee = currentUser() AND (statusCategory != Done OR resolved &gt;= -14d)"</code>, <code>fields: summary, status, issuetype, project, labels, updated</code>.</li>
+      <li>Columns follow the ticket's status name (To Do, In Progress, In Review, Stage QA, Done); Backlog is a sidebar filter.</li>
+      <li>Blocked: <code>labels = blocked</code> (the label name is a setting).</li>
+      <li>Write back: move a ticket with <code>GET</code> then <code>POST /rest/api/3/issue/{key}/transitions</code> (the menu lists exactly the moves your workflow allows); comment with <code>POST …/comment</code>; assign with <code>PUT …/assignee</code>; add or remove the blocked label with <code>PUT /rest/api/3/issue/{key}</code>.</li>
+      <li>Saved filters are JQL strings in settings; also offer my Jira favourite filters (<code>/rest/api/3/filter/favourite</code>).</li>
+    </ul>
+  </div>
+  <div class="note">
+    <div class="eyebrow">5 · Before building</div>
+    <h2>Open questions</h2>
+    <ol class="q">
+      <li>Done column: show tickets you finished in the last 14 days (older ones drop off so the column stays short). Or a different number of days?</li>
+    </ol>
+  </div>
+</section>
+</div>
+
+<script>
+// Example data only.
+// One Jira Cloud site, every project you're assigned in. HDE matches your board; OPS and HFP are placeholders.
+const SITES = {
+  main:{name:"yoursite.atlassian.net",projects:{HDE:"#3b6fd4",OPS:"#d4553a",HFP:"#2f8a4c"}}
+};
+const T = [ // s: backlog|todo|prog|review|qa|done ; b: has the blocked label
+  {k:"HDE-314",site:"main",t:"[go-gql-api] - blocks query from ClickHouse (finalized data)",s:"prog",type:"Task",pr:[{n:"#212",t:"HDE-314 blocks query from ClickHouse",r:"go-gql-api",st:"review",why:"title"}],space:{name:"go-gql-api",br:"HDE-314"}},
+  {k:"HDE-332",site:"main",t:"[RLP] Slow processing on new database",s:"prog",type:"Bug",b:"blocked",pr:[{n:"#57",t:"RLP batch inserts",r:"rlp",st:"draft",why:"branch"}],space:null,br:"fix/HDE-332-slow-processing"},
+  {k:"HDE-266",site:"main",t:"[go-SDK] - replace custom reflection serializer + refactoring",s:"review",type:"Task",pr:[{n:"#41",t:"HDE-266 replace reflection serializer",r:"go-sdk",st:"review",why:"title"}],space:null},
+  {k:"HDE-315",site:"main",t:"[go-gql-api] - finality watermark per chain",s:"todo",type:"Task",pr:[],space:null},
+  {k:"HDE-316",site:"main",t:"[go-gql-api] - hot blocks from PostgreSQL + store routing",s:"todo",type:"Task",pr:[{n:"#219",t:"hot blocks routing",r:"go-gql-api",st:"waiting",why:"branch"}],space:null},
+  {k:"HDE-334",site:"main",t:"[go-gql-api] - development commands (split 01/10 of HDE-314)",s:"todo",type:"Task",pr:[],space:null},
+  {k:"HDE-264",site:"main",t:"[go-API] - expand erc20 postman collection",s:"qa",type:"Task",pr:[{n:"#198",t:"erc20 postman collection",r:"go-api",st:"merged",why:"branch"}],space:null},
+  {k:"HDE-331",site:"main",t:"[migrator] - Aligning pg blocks types",s:"qa",type:"Task",pr:[{n:"#33",t:"HDE-331 align pg block types",r:"migrator",st:"merged",why:"title"}],space:null},
+  {k:"HDE-312",site:"main",t:"[go-api] - auto pr on infra-api",s:"done",type:"Task",pr:[{n:"#201",t:"auto pr on infra-api",r:"go-api",st:"merged",why:"branch"}],space:null},
+  {k:"HDE-140",site:"main",t:"[API] - Check redis data first bug",s:"backlog",type:"Bug",pr:[],space:null},
+  {k:"OPS-18",site:"main",t:"Rotate staging DB credentials",s:"todo",type:"Task",b:"blocked",pr:[],space:null},
+  {k:"HFP-7",site:"main",t:"Landing page copy review",s:"review",type:"Task",pr:[],space:null},
+];
+const FILTERS = [
+  ["open","My open","statusCategory != Done AND status != Backlog",t=>t.s!=="done"&&t.s!=="backlog"],
+  ["blocked","Blocked","labels = blocked",t=>!!t.b],
+  ["review","In review + QA","status in (\"In Review\", \"Stage QA\")",t=>t.s==="review"||t.s==="qa"],
+  ["done","Done · 14 days","statusCategory = Done AND resolved >= -14d",t=>t.s==="done"],
+  ["backlog","Backlog","status = Backlog",t=>t.s==="backlog"],
+];
+const COLS = [["todo","To Do"],["prog","In Progress"],["review","In Review"],["qa","Stage QA"],["done","Done"]];
+const PRST = {review:["warn","in review"],waiting:["n","waiting"],draft:["n","draft"],merged:["m","merged"]};
+let site="all", proj=null, filt="open", cur="HDE-314";
+const $ = id => document.getElementById(id);
+const proOf = t => t.k.split("-")[0];
+const color = t => SITES[t.site].projects[proOf(t)];
+const inScope = t => (site==="all"||t.site===site) && (!proj||proOf(t)===proj);
+const esc = s => s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+
+function side(){
+  const cnt = f => T.filter(t=>f(t)&&t.s!=="done").length;
+  let h = `<button class="navitem${site==="all"?" on":""}" data-s="all"><span class="nm">All sites</span><span class="cnt">${cnt(()=>true)}</span></button>`;
+  for (const [sk,s] of Object.entries(SITES)) {
+    h += `<button class="navitem${site===sk&&!proj?" on":""}" data-s="${sk}"><span class="nm">${s.name}</span><span class="cnt">${cnt(t=>t.site===sk)}</span></button>`;
+    for (const [pk,c] of Object.entries(s.projects))
+      h += `<button class="navitem proj${proj===pk?" on":""}" data-s="${sk}" data-p="${pk}"><span class="sq" style="background:${c}">${pk[0]}</span><span class="nm">${pk}</span><span class="cnt">${cnt(t=>proOf(t)===pk)}</span></button>`;
+  }
+  $("sites").innerHTML = h;
+  $("sites").querySelectorAll("button").forEach(b=>b.onclick=()=>{site=b.dataset.s;proj=b.dataset.p||null;render()});
+  $("filters").innerHTML = FILTERS.map(([k,n,j,f])=>`<button class="navitem${filt===k?" on":""}" data-f="${k}" title="${esc(j)}"><span class="nm">${n}</span><span class="cnt">${T.filter(t=>inScope(t)&&f(t)).length}</span></button>`).join("");
+  $("filters").querySelectorAll("button").forEach(b=>b.onclick=()=>{filt=b.dataset.f;render()});
+}
+
+function render(){
+  side();
+  const scope = T.filter(inScope);
+  const f = FILTERS.find(x=>x[0]===filt);
+  const shown = scope.filter(f[3]);
+  $("title").textContent = proj ? `${SITES[site].name} · ${proj}` : site==="all" ? "All sites" : SITES[site].name;
+  $("fname").textContent = f[1];
+  const blocked = scope.filter(t=>t.b).length;
+  const n = s => scope.filter(t=>t.s===s).length;
+  const active = scope.filter(t=>t.s!=="done"&&t.s!=="backlog").length;
+  $("railB").textContent = blocked || ""; $("railB").hidden = !blocked;
+  $("kpis").innerHTML = [
+    ["Assigned to me",active,`${n("backlog")} more in backlog`,""],
+    ["In progress",n("prog"),`${n("todo")} waiting in To Do`,""],
+    ["In review + QA",n("review")+n("qa"),`${n("review")} review · ${n("qa")} QA`,n("review")+n("qa")?"attn":""],
+    ["Blocked",blocked,blocked?"has the blocked label":"none",blocked?"bad":""],
+    ["Done · 14 days",n("done"),"tickets moved to Done",""],
+  ].map(([l,v,d,c])=>`<div class="kpi ${c}"><span class="l">${l}</span><span class="v">${v}</span><span class="d">${d}</span></div>`).join("");
+
+  // Kanban flow: how my open tickets spread over the columns
+  const parts = [["todo","var(--faint)","To Do"],["prog","var(--info)","In Progress"],["review","var(--warn)","In Review"],["qa","var(--merged)","Stage QA"],["done","var(--ok)","Done (14d)"]];
+  const total = parts.reduce((a,[s])=>a+n(s),0);
+  $("sprN").textContent = `${total} tickets across the board`;
+  $("sprint").innerHTML = `<div class="bar" role="img" aria-label="Tickets by column">${parts.map(([s,c])=>n(s)?`<i style="width:${n(s)/Math.max(total,1)*100}%;background:${c}"></i>`:"").join("")}</div>
+    <div class="legend">${parts.map(([s,c,l])=>`<span><i class="dot" style="background:${c}"></i>${l} ${n(s)}</span>`).join("")}<span style="margin-left:auto">no story points: counts only</span></div>`;
+
+  $("boardN").textContent = `${shown.length} tickets`;
+  $("board").innerHTML = COLS.map(([c,l])=>{
+    const items = shown.filter(t=>t.s===c);
+    return `<div class="col"><h4>${l}<span class="c">${items.length}</span></h4>${items.map(t=>`
+      <button class="tk ${t.b?"blocked":c}${t.k===cur?" sel":""}" data-k="${t.k}">
+        <span class="meta"><i class="dot" style="background:${color(t)};border-radius:2px"></i><span class="key">${t.k}</span><span>${t.type}</span></span>
+        <span class="t" title="${esc(t.t)}">${esc(t.t)}</span>
+        <span class="meta">${t.b?`<span class="pill bad">${t.b}</span>`:""}${t.pr.length?`<span class="pill m">${t.pr.length} PR</span>`:""}${t.space?`<span class="pill i">space</span>`:""}</span>
+      </button>`).join("")||`<span class="example">Nothing here</span>`}</div>`;
+  }).join("");
+  $("board").querySelectorAll(".tk").forEach(b=>b.onclick=()=>{cur=b.dataset.k;render()});
+  detail();
+}
+
+function detail(){
+  const t = T.find(x=>x.k===cur);
+  const st = {backlog:"Backlog",todo:"To Do",prog:"In Progress",review:"In Review",qa:"Stage QA",done:"Done"}[t.s];
+  const br = t.space?.br || t.br || `feat/${t.k}-${t.t.toLowerCase().replace(/[^a-z0-9]+/g,"-").slice(0,24).replace(/-$/,"")}`;
+  const prs = t.pr.map(p=>`<div class="lk"><span class="ic">PR</span><span class="tx"><span>${esc(p.t)}</span><small>${p.r} ${p.n}</small></span><span style="display:flex;gap:6px;align-items:center"><span class="why">key in ${p.why}</span><span class="pill ${PRST[p.st][0]}">${PRST[p.st][1]}</span></span></div>`).join("")
+    || `<div class="lk"><span class="ic">PR</span><span class="tx"><span style="color:var(--muted)">No PR found with ${t.k} in title, body or branch</span></span><span></span></div>`;
+  const sp = t.space
+    ? `<div class="lk"><span class="ic">▤</span><span class="tx"><span>${t.space.name}</span><small class="mono">${t.space.br}</small></span><span class="why">key in branch</span></div>`
+    : `<div class="lk"><span class="ic">▤</span><span class="tx"><span style="color:var(--muted)">No space on a ${t.k} branch yet</span><small class="mono">would create ${br}</small></span><span></span></div>`;
+  const hint = (t.s==="review"||t.s==="prog") && t.pr.some(p=>p.st==="merged") ? `<span class="pill warn">PR merged, ticket still ${st}</span>` : "";
+  const repo = (t.t.match(/^\[([^\]]+)\]/)||[])[1];
+  $("detail").innerHTML = `
+    <div class="dhead"><span class="key">${t.k}</span><b>${esc(t.t)}</b><span class="pill ${t.s==="done"?"ok":t.s==="review"?"warn":t.s==="qa"?"m":t.s==="prog"?"i":"n"}">${st}</span>${t.b?`<span class="pill bad">blocked label</span>`:""}${hint}</div>
+    ${repo?`<span class="example">Repo from the title prefix: <code>${esc(repo)}</code></span>`:""}
+    <div class="links">${prs}${sp}</div>
+    <div class="actions">
+      <button class="btn pri" data-a="space">${t.space?"Open in space":"Start in new space"}</button>
+      ${t.pr[0]?`<button class="btn" data-a="pr">Open PR</button>`:""}
+      <button class="btn" data-a="jira">Open in Jira</button>
+      <button class="btn" data-a="copy">Copy branch name</button>
+    </div>
+    <div class="actions"><span class="example" style="align-self:center">Write back:</span>
+      <button class="btn" data-a="move">Move to ▾</button>
+      <button class="btn" data-a="block">${t.b?"Remove blocked label":"Mark blocked"}</button>
+      <button class="btn" data-a="comment">Comment</button>
+      <button class="btn" data-a="assign">Assign…</button>
+    </div>`;
+  const cmd = {
+    space: t.space ? `space.select {id: "<${t.space.name}>"}` : `worktree {branch: "${br}"}`,
+    pr: `open https://github.com/<org>/${t.pr[0]?.r}/pull/${t.pr[0]?.n.slice(1)}`,
+    jira: `open https://${SITES[t.site].name}/browse/${t.k}`,
+    copy: `copied ${br}`,
+    move: `POST /rest/api/3/issue/${t.k}/transitions (menu: the moves your workflow allows from ${st})`,
+    block: `PUT /rest/api/3/issue/${t.k} {update:{labels:[{${t.b?"remove":"add"}:"blocked"}]}}`,
+    comment: `POST /rest/api/3/issue/${t.k}/comment`,
+    assign: `PUT /rest/api/3/issue/${t.k}/assignee`,
+  };
+  $("detail").querySelectorAll("button").forEach(b=>b.onclick=()=>toast("would run: "+cmd[b.dataset.a]));
+}
+let tt;
+function toast(s){const e=$("toast");e.textContent=s;e.classList.add("on");clearTimeout(tt);tt=setTimeout(()=>e.classList.remove("on"),2200)}
+render();
+</script>
