@@ -220,6 +220,13 @@
           "content": {
             "mod": "slack"
           }
+        },
+        {
+          "id": "notes",
+          "type": "block",
+          "content": {
+            "mod": "notes"
+          }
         }
       ]
     }
