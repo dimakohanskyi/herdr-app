@@ -231,7 +231,7 @@ fn module(values: BTreeMap<String, Value>, calls: Rc<RefCell<Calls>>) -> HostMod
         module = module.async_function(name, move |a| {
             let first = a.get(0).map(from_host).unwrap_or(Value::Null);
             let reply = match name {
-                "readTextFile" if first == "/fixture/app/settings.json" || first == "/fixture/app/notes.md" || first == "/fixture/.ssh/config" => Some(Value::Null),
+                "readTextFile" if first == "/fixture/app/settings.json" || first == "/fixture/.ssh/config" => Some(Value::Null),
                 "readTextFile" => first
                     .as_str()
                     .and_then(|p| p.strip_prefix("/fixture/app/layouts/"))
@@ -264,6 +264,8 @@ fn module(values: BTreeMap<String, Value>, calls: Rc<RefCell<Calls>>) -> HostMod
                 }
                 // Pulse asks gh (directly or through sh) and Jira the macOS Keychain: neither is set up here.
                 "exec" if first == "gh" || first == "sh" => Some(json!({"code":1,"stdout":"","stderr":"fixture: gh not logged in"})),
+                // Notes makes its folder and lists it: an empty one here.
+                "exec" if first == "mkdir" || first == "ls" => Some(json!({"code":0,"stdout":"","stderr":""})),
                 "exec" if first == "security" => Some(json!({"code":44,"stdout":"","stderr":"fixture: no keychain item"})),
                 _ => None,
             };
