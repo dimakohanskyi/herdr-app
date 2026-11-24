@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 cargo build --release
 
-app="$HOME/Applications/Herdr.app"
+app="${HERDR_APP:-$HOME/Applications/Herdr.app}"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$HOME/.local/bin"
 # Replace atomically so installing does not interrupt a running Herdr.
 cp target/release/herdr-app "$app/Contents/MacOS/Herdr.new"

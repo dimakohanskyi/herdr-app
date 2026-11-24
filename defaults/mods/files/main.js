@@ -1,7 +1,7 @@
 // A lazy file browser for the focused pane's folder, with bounded read-only previews.
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, Editor, EditorState } from "gpui-base";
-import { spaces, panes, focused, exec, readTextFile, watchFolder, theme, settings, window } from "herdr";
+import { spaces, panes, focused, exec, readTextFile, watchFolder, theme, settings, window, layout, run, shared, setShared } from "herdr";
 
 function location() {
   const space = spaces().find(s => s.active), f = focused();
@@ -12,6 +12,23 @@ function location() {
 const key = () => JSON.stringify(location());
 const LANG = { ts: "js", tsx: "js", mts: "js", cts: "js", jsx: "js", mjs: "js", toml: "yaml", jsonc: "json", svelte: "html", vue: "html" };
 const PER_FOLDER = 500, TOTAL = 5000;
+// VS Code's explorer git decorations: letter per status, a folder takes its strongest child's color (deleted files don't propagate).
+const color = (mark, t) => ({ M: t.ansi3, A: t.ansi2, U: t.ansi2, D: t.ansi1, "!": t.ansi1 })[mark];
+const RANK = { U: 1, A: 2, M: 3, "!": 4 };
+
+function find(node, id) {
+  if (node?.id === id) return node;
+  for (const child of node?.children ?? []) { const found = find(child, id); if (found) return found; }
+  return null;
+}
+// ponytail: same toggle lives in changes/main.js, and tabs/main.js shows "main" again if the panel closes while expanded.
+const expanded = () => find(layout(), "main")?.hidden === true;
+function toggleExpanded() {
+  if (expanded()) { run("layout.show", { id: "main" }); run("layout.resize", { id: "panel", px: shared("panel.px") ?? 368 }); return; }
+  const px = find(layout(), "panel")?.size?.px;
+  if (px) setShared("panel.px", px);
+  run("layout.hide", { id: "main" }); run("layout.resize", { id: "panel", weight: 1 });
+}
 
 async function directory(path, on) {
   const windowsDirectory = async () => {
@@ -41,7 +58,7 @@ async function directory(path, on) {
 export default class Files extends View {
   init(_props, cx) {
     this.saved = new Map();
-    this.entries = new Map(); this.folders = new Set(); this.pending = new Set(); this.marks = {};
+    this.entries = new Map(); this.folders = new Set(); this.pending = new Set(); this.marks = {}; this.folderMarks = {}; this.ignored = new Set(); this.handle = cx.focus_handle();
     this.refresh(cx);
     cx.timer.every(10000, cx => this.refresh(cx));
   }
@@ -75,7 +92,7 @@ export default class Files extends View {
       if (this.context) this.saved.set(this.context.key, { folders: this.folders, file: this.file });
       const saved = this.saved.get(next);
       this.context = { key: next, cwd, on }; this.root = cwd; this.on = on; this.entries = new Map(); this.folders = new Set(saved?.folders);
-      this.pending = new Set(); this.marks = {}; this.show(null); this.watched = null; this.error = null; this.limited = false;
+      this.pending = new Set(); this.marks = {}; this.folderMarks = {}; this.ignored = new Set(); this.show(null); this.watched = null; this.error = null; this.limited = false;
       this.loading = false;
       if (saved?.file) this.show(saved.file, cx);
     }
@@ -90,17 +107,28 @@ export default class Files extends View {
           await this.loadFolder(path, context);
         }
         const top = await exec("git", ["rev-parse", "--show-toplevel"], { cwd, on }).catch(() => null);
-        const marks = {};
+        const marks = {}, folderMarks = {}, ignored = new Set();
         if (top?.code === 0) {
+          const base = top.stdout.trim();
           // Writes nothing under .git (index lock, fsmonitor cookie): the folder watch would refresh again.
           const status = await exec("git", ["--no-optional-locks", "-c", "core.fsmonitor=false", "status", "--porcelain=v1", "-z", "--no-renames", "--untracked-files=all"], { cwd, on }).catch(() => null);
           if (status?.code === 0) for (const entry of status.stdout.split("\0").filter(Boolean).slice(0, TOTAL)) {
-            const xy = entry.slice(0, 2);
-            marks[`${top.stdout.trim()}/${entry.slice(3)}`] = xy === "??" || xy.includes("A") ? "A" : xy.includes("U") ? "U" : xy.includes("D") ? "D" : "M";
+            const xy = entry.slice(0, 2), rel = entry.slice(3);
+            const mark = xy.includes("U") || xy === "AA" || xy === "DD" ? "!" : xy === "??" ? "U" : xy.includes("D") ? "D" : xy.includes("A") ? "A" : "M";
+            marks[`${base}/${rel}`] = mark;
+            if (mark === "D") continue;
+            const parts = rel.split("/");
+            for (let i = 1; i < parts.length; i++) {
+              const folder = `${base}/${parts.slice(0, i).join("/")}`;
+              if ((RANK[folderMarks[folder]] ?? 0) < RANK[mark]) folderMarks[folder] = mark;
+            }
           }
+          // --directory lists an ignored folder once instead of every file in it.
+          const ign = await exec("git", ["--no-optional-locks", "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory"], { cwd: base, on }).catch(() => null);
+          if (ign?.code === 0) for (const rel of ign.stdout.split("\0").filter(Boolean).slice(0, TOTAL)) ignored.add(`${base}/${rel.replace(/\/$/, "")}`);
         }
         if (!this.current(context)) return;
-        this.marks = marks; this.error = null; this.watch(cwd, cx);
+        this.marks = marks; this.folderMarks = folderMarks; this.ignored = ignored; this.error = null; this.watch(cwd, cx);
       } catch (e) { if (this.current(context)) this.error = String(e); }
       finally { if (this.context === context) this.loading = false; cx.notify(); }
     });
@@ -146,18 +174,21 @@ export default class Files extends View {
     });
   }
 
-  rows(prefix, depth, out, t) {
+  rows(prefix, depth, out, t, dimmed = false) {
     if (out.length >= TOTAL || depth > 40) return out;
     for (const entry of this.entries.get(prefix) ?? []) {
       if (out.length >= TOTAL) break;
-      const path = prefix ? `${prefix}/${entry.name}` : entry.name, open = this.folders.has(path), mark = this.marks[`${this.root}/${path}`];
+      const path = prefix ? `${prefix}/${entry.name}` : entry.name, open = this.folders.has(path), abs = `${this.root}/${path}`;
+      const mark = this.marks[abs], folderMark = entry.dir ? this.folderMarks[abs] : null, ignored = dimmed || this.ignored.has(abs);
+      const tint = color(mark ?? folderMark, t) ?? (ignored ? t.dim : null);
       out.push(h_flex().id(`file-${path}`).h(28).flex_none().pl(8 + depth * 18).pr(8).gap(7).items_center().rounded(7).cursor_pointer().hover(s => s.bg(t.hover))
         .on_click((_e, cx) => entry.dir ? this.toggle(path, cx) : this.show(path, cx))
         .child(entry.dir ? svg(`mods/files/chevron-${open ? "down" : "right"}.svg`).size(12).flex_none().text_color(t.dim) : div().w(12).flex_none())
         .child(svg(`mods/files/${entry.dir ? "folder" : "file"}.svg`).size(14).flex_none().text_color(t.muted))
-        .child(div().flex_1().min_w(0).truncate().child(entry.name))
-        .when(Boolean(mark), el => el.child(div().text_size(11).text_color(mark === "A" ? t.ansi2 : mark === "D" || mark === "U" ? t.ansi1 : t.blocked).child(mark))));
-      if (entry.dir && open) this.rows(path, depth + 1, out, t);
+        .child(div().flex_1().min_w(0).truncate().when(Boolean(tint), el => el.text_color(tint)).child(entry.name))
+        .when(Boolean(mark), el => el.child(div().text_size(11).text_color(tint).child(mark)))
+        .when(!mark && Boolean(folderMark), el => el.child(div().size(6).mr(2).flex_none().rounded(3).bg(tint))));
+      if (entry.dir && open) this.rows(path, depth + 1, out, t, ignored);
     }
     return out;
   }
@@ -166,11 +197,16 @@ export default class Files extends View {
     if (key() !== this.context?.key) this.refresh(cx);
     const t = theme();
     const font = this.code ? settings() : null;
+    const big = expanded(), fileTint = this.file ? color(this.marks[`${this.root}/${this.file}`], t) : null;
     return v_flex().id("files").size_full().min_h(0).rounded(10).overflow_hidden().bg(t.background).border_1().border_color(t.border).text_color(t.foreground).text_size(13)
+      .track_focus(this.handle).on_mouse_down("left", () => this.handle.focus())
+      .on_key_down((e, cx) => { if (e.key === "escape" && big) { toggleExpanded(); cx.stop_propagation(); } })
       .child(h_flex().h(42).flex_none().px(14).gap(8).items_center().border_b(1).border_color(t.border)
         .when(Boolean(this.file), el => el.child(div().id("files-back").w(20).cursor_pointer().text_color(t.muted).on_click((_e, cx) => { this.show(null); cx.notify(); }).child("←")))
         .child(div().font_semibold().child("Files"))
-        .child(div().flex_1().min_w(0).truncate().text_right().text_size(12).text_color(t.dim).child(this.file ?? this.root?.split(/[\\/]/).pop() ?? "")))
+        .child(div().flex_1().min_w(0).truncate().text_right().text_size(12).text_color(fileTint ?? t.dim).child(this.file ?? this.root?.split(/[\\/]/).pop() ?? ""))
+        .child(div().id("files-expand").size(22).flex_none().flex().items_center().justify_center().rounded(6).cursor_pointer().text_color(t.dim).hover(s => s.bg(t.hover).text_color(t.foreground))
+          .on_click((_e, cx) => { toggleExpanded(); cx.notify(); }).child(svg(`mods/pane/${big ? "unzoom" : "zoom"}.svg`).size(13))))
       .when(!this.file, el => el.child(v_flex().id("files-tree").flex_1().min_h(0).overflow_y_scrollbar().p(6).children(this.rows("", 0, [], t))
         .when(Boolean(this.error) || !this.entries.get("")?.length, el => el.child(div().p(8).text_size(12).text_color(t.dim).child(this.error || (this.loading ? "Loading files…" : this.root ? "No files" : "No folder"))))
         .when(this.limited, el => el.child(div().p(8).text_size(11).text_color(t.dim).child("File list limited to 500 entries per folder and 5,000 total")))))

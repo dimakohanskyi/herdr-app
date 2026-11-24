@@ -12,6 +12,9 @@ const SCOPES = [["org", "Orgs"], ["personal", "Personal"], ["all", "All"]];
 
 const PR_FIELDS = `...on PullRequest{number title url isDraft createdAt updatedAt additions deletions mergeable reviewDecision
   repository{nameWithOwner} author{login} labels(first:10){nodes{name}} commits(last:1){nodes{commit{statusCheckRollup{state}}}}}`;
+// My own PRs also carry what the My PRs page needs to merge them.
+const MINE_FIELDS = PR_FIELDS.replace("repository{nameWithOwner}", `headRefName baseRefName mergeStateStatus autoMergeRequest{enabledAt}
+  repository{nameWithOwner squashMergeAllowed mergeCommitAllowed rebaseMergeAllowed viewerDefaultMergeMethod}`);
 const DONE_FIELDS = `...on PullRequest{number title url state createdAt mergedAt closedAt additions deletions repository{nameWithOwner}}`;
 const ISSUE_FIELDS = `...on Issue{number title url updatedAt repository{nameWithOwner}}`;
 
@@ -21,7 +24,7 @@ const ISSUE_FIELDS = `...on Issue{number title url updatedAt repository{nameWith
 function searches() {
   const since = day(-Math.max(...RANGES));
   return {
-    mine: ["is:pr is:open archived:false author:@me", 50, PR_FIELDS],
+    mine: ["is:pr is:open archived:false author:@me", 50, MINE_FIELDS],
     assigned: ["is:pr is:open archived:false assignee:@me -author:@me", 50, PR_FIELDS],
     review: ["is:pr is:open archived:false review-requested:@me", 50, PR_FIELDS],
     done: [`is:pr author:@me is:closed closed:>=${since}`, 100, DONE_FIELDS, 3],
@@ -129,6 +132,29 @@ export function column(p) {
   if (blockers(p).length) return "blocked";
   if (!p.isDraft && p.reviewDecision === "APPROVED") return "ready";
   return "waiting";
+}
+
+// What the merge button can do for one of my PRs, from GitHub's mergeStateStatus.
+// ok: merge now; auto: auto-merge can wait for required checks and reviews; update: branch is behind.
+export function mergeState(p) {
+  if (p.isDraft || p.mergeStateStatus === "DRAFT") return { ok: false, why: "draft" };
+  if (p.mergeable === "CONFLICTING" || p.mergeStateStatus === "DIRTY") return { ok: false, why: "merge conflicts" };
+  switch (p.mergeStateStatus) {
+    case "CLEAN": case "HAS_HOOKS": return { ok: true, why: "ready" };
+    case "UNSTABLE": return { ok: true, why: "non-required checks failing" };
+    case "BLOCKED": return { ok: false, auto: true, why: "needs required reviews or checks" };
+    case "BEHIND": return { ok: false, auto: true, update: true, why: "branch is behind base" };
+    default: return { ok: false, why: "GitHub is checking" };
+  }
+}
+
+// Merge methods the repo allows, the one I used last there first.
+export function methods(p) {
+  const r = p.repository ?? {};
+  const all = [["squash", r.squashMergeAllowed], ["merge", r.mergeCommitAllowed], ["rebase", r.rebaseMergeAllowed]]
+    .filter(([, on]) => on !== false).map(([m]) => m);
+  const first = (r.viewerDefaultMergeMethod ?? "").toLowerCase();
+  return all.includes(first) ? [first, ...all.filter((m) => m !== first)] : all;
 }
 
 function waitingOn(p) {
@@ -240,6 +266,9 @@ export default class Pulse extends View {
     this.sel = "all";
     this.range = 30;
     try { this.scope = localStorage.getItem("pulse.scope") ?? "org"; } catch { this.scope = "org"; }
+    try { this.page = localStorage.getItem("pulse.page") ?? "dashboard"; } catch { this.page = "dashboard"; }
+    // My PRs page: chosen merge method per PR, the action awaiting a second click, the one running.
+    this.method = {}; this.confirm = null; this.busy = null; this.note = null;
     this.data = null;
     try { this.data = JSON.parse(localStorage.getItem(CACHE) ?? "null"); } catch { this.data = null; }
     if (checking()) return;
@@ -262,6 +291,25 @@ export default class Pulse extends View {
       } finally {
         this.loading = false;
         cx.notify();
+      }
+    });
+  }
+
+  // Every write is two clicks on a PR row: nothing here runs on its own.
+  act(cx, p, label, args) {
+    if (this.busy) return;
+    const acc = this.data?.accounts?.find((a) => a.login === p.acc);
+    if (!acc) return;
+    this.busy = p.url; this.confirm = null; this.note = null; cx.notify();
+    cx.spawn(async (cx) => {
+      try {
+        const r = await gh(acc, ["pr", ...args, p.url]);
+        if (r.code !== 0) throw new Error((r.stderr || r.stdout).trim().split("\n").at(-1) || `gh exited with ${r.code}`);
+        this.note = { url: p.url, text: `${label} ✓` };
+      } catch (e) {
+        this.note = { url: p.url, text: `${label} failed: ${e.message ?? e}`, error: true };
+      } finally {
+        this.busy = null; cx.notify(); this.refresh(cx);
       }
     });
   }
@@ -321,6 +369,15 @@ export default class Pulse extends View {
         .child(svg("mods/rail/activity.svg").size(15).text_color(t.accent))
         .child(div().flex_1().font_semibold().text_color(t.foreground).child("Pulse")))
       .child(v_flex().px(8).gap(1)
+        .child(label("PAGES"))
+        .children([["dashboard", "Dashboard", null], ["mine", "My PRs", accs.length ? this.summary(accs.filter((a) => !a.error)).mine : 0]].map(([id, text, n]) => {
+          const on = this.page === id;
+          return h_flex().id(`page-${id}`).h(28).px(8).gap(8).items_center().rounded(6).cursor_pointer()
+            .bg(on ? t.selected : t.chrome).text_color(on ? t.foreground : t.muted).hover((s) => s.bg(t.hover).text_color(t.foreground))
+            .on_click((_e, cx) => { this.page = id; try { localStorage.setItem("pulse.page", id); } catch {} cx.notify(); })
+            .child(div().flex_1().child(text))
+            .child(n ? div().text_size(11).text_color(t.dim).child(String(n)) : div());
+        }))
         .child(label("ACCOUNTS"))
         .child(row("all", "All accounts", null, accs.length ? countFor(accs.filter((a) => !a.error)) : 0))
         .children(accs.map((a) => row(a.login, a.login, this.dot(colors[a.login]), a.error ? 0 : countFor([a]), a.error)))
@@ -456,6 +513,62 @@ export default class Pulse extends View {
       [0, 120, 56]));
   }
 
+  // ---- My PRs page ----
+
+  myPrs(t, s, colors) {
+    const mine = s.open.filter((p) => p.own);
+    const LABEL = { squash: "Squash and merge", merge: "Merge", rebase: "Rebase and merge" };
+    const CI = { SUCCESS: ["checks pass", t.ansi2], FAILURE: ["checks fail", t.ansi1], ERROR: ["checks error", t.ansi1], PENDING: ["checks running", t.ansi3], EXPECTED: ["checks running", t.ansi3] };
+    const REVIEW = { APPROVED: ["approved", t.ansi2], CHANGES_REQUESTED: ["changes requested", t.ansi1], REVIEW_REQUIRED: ["review required", t.ansi3] };
+    const btn = (id, text, primary, onClick) => div().id(id).h(24).px(10).flex().items_center().rounded(6).cursor_pointer().text_size(11.5).font_medium()
+      .bg(primary ? t.solid : t.raised).text_color(primary ? t.solid_foreground : t.foreground).border(1).border_color(primary ? t.solid : t.input)
+      .hover((st) => st.opacity(0.88)).on_click(onClick).child(text);
+    const row = (p) => {
+      const m = mergeState(p), ms = methods(p), method = this.method[p.url] ?? ms[0] ?? "merge";
+      const ci = CI[p.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state], review = REVIEW[p.reviewDecision];
+      // First click asks, second runs.
+      const two = (kind, text, sure, done, args, primary) => this.confirm === `${p.url}|${kind}`
+        ? [btn(`yes-${kind}-${p.url}`, sure, true, (_e, cx) => this.act(cx, p, done, args)),
+           btn(`no-${kind}-${p.url}`, "Cancel", false, (_e, cx) => { this.confirm = null; cx.notify(); })]
+        : [btn(`${kind}-${p.url}`, text, primary, (_e, cx) => { this.confirm = `${p.url}|${kind}`; this.note = null; cx.notify(); })];
+      const actions = this.busy === p.url ? [svg("mods/pulse/spinner.svg").size(14).spin(900)]
+        : p.autoMergeRequest ? two("noauto", "Disable auto-merge", "Disable auto-merge?", "Auto-merge off", ["merge", "--disable-auto"])
+        : [
+          ...(p.isDraft ? two("ready", "Ready for review", "Mark ready?", "Marked ready", ["ready"]) : []),
+          ...(m.update ? two("update", "Update branch", "Merge base into branch?", "Branch updated", ["update-branch"]) : []),
+          ...(m.ok ? two("merge", LABEL[method], `Confirm ${method}`, "Merged", ["merge", `--${method}`], true) : []),
+          ...(m.auto ? two("auto", "Enable auto-merge", `Auto-${method} when ready?`, "Auto-merge on", ["merge", "--auto", `--${method}`]) : []),
+        ];
+      const pickMethod = ms.length > 1 && (m.ok || m.auto) && !p.autoMergeRequest && this.busy !== p.url;
+      const note = this.note?.url === p.url ? this.note : null;
+      return v_flex().id(`mine-${p.url}`).px(12).py(8).gap(5).border_b(1).border_color(t.border)
+        .child(h_flex().gap(8).items_center().min_w(0)
+          .when(this.sel === "all", (el) => el.child(this.dot(colors[p.acc], 7)))
+          .child(div().id(`open-${p.url}`).flex_1().min_w(0).truncate().text_size(13).font_medium().text_color(t.foreground).cursor_pointer()
+            .hover((st) => st.text_color(t.accent)).tooltip("Open on GitHub").on_click(() => openUrl(p.url)).child(p.title))
+          .child(div().text_size(11).text_color(t.ansi2).child(`+${fmt(p.additions)}`))
+          .child(div().text_size(11).text_color(t.ansi1).child(`−${fmt(p.deletions)}`))
+          .child(div().w(32).text_size(11).text_color(t.dim).child(ago(p.updatedAt))))
+        .child(h_flex().gap(6).items_center().min_w(0).text_size(11).text_color(t.muted)
+          .child(div().flex_none().child(`${repoName(p.repository.nameWithOwner)} #${p.number}`))
+          .when(Boolean(p.headRefName), (el) => el.child(div().min_w(0).truncate().text_color(t.dim).child(`${p.headRefName} → ${p.baseRefName}`)))
+          .when(p.isDraft, (el) => el.child(this.pill("draft", t.muted)))
+          .when(Boolean(ci), (el) => el.child(this.pill(ci[0], ci[1])))
+          .when(Boolean(review), (el) => el.child(this.pill(review[0], review[1])))
+          .when(Boolean(p.autoMergeRequest), (el) => el.child(this.pill("auto-merge on", t.ansi5)))
+          .when(!p.isDraft && !p.autoMergeRequest, (el) => el.child(this.pill(m.why, m.ok ? t.ansi2 : m.why === "merge conflicts" ? t.ansi1 : t.muted)))
+          .child(div().flex_1())
+          .when(pickMethod, (el) => el.child(h_flex().gap(2).children(ms.map((x) => div().id(`m-${x}-${p.url}`).px(6).h(20).flex().items_center().rounded(5).cursor_pointer()
+            .bg(x === method ? t.selected : t.background).text_color(x === method ? t.foreground : t.dim).hover((st) => st.text_color(t.foreground))
+            .on_click((_e, cx) => { this.method[p.url] = x; this.confirm = null; cx.notify(); }).child(x)))))
+          .children(actions))
+        .when(Boolean(note), (el) => el.child(div().text_size(11.5).text_color(note.error ? t.ansi1 : t.ansi2).child(note.text)));
+    };
+    const ready = mine.filter((p) => mergeState(p).ok).length;
+    return this.card(t, "My open PRs", `${mine.length} open${ready ? ` · ${ready} can merge now` : ""}`,
+      mine.length ? v_flex().children(mine.map(row)) : div().px(12).py(10).text_size(11.5).text_color(t.dim).child("No open PRs"));
+  }
+
   message(t, title, body) {
     return v_flex().flex_1().items_center().justify_center().gap(6).text_color(t.muted)
       .child(div().text_size(15).font_semibold().text_color(t.foreground).child(title))
@@ -477,6 +590,8 @@ export default class Pulse extends View {
           .child(div().text_size(12).text_color(t.muted).child(`${{ org: "organisation repos", personal: "personal repos", all: "all repos" }[this.scope]} · last ${this.range} days`)))
         .when(Boolean(this.error), (el) => el.child(div().text_size(12).text_color(t.ansi1).child(`Refresh failed: ${this.error}`)))
         .children(failed.map((a) => div().text_size(12).text_color(t.ansi1).child(`${a.login}: ${a.error}`)))
+        .when(this.page === "mine", (el) => el.child(this.myPrs(t, s, colors)))
+        .when(this.page !== "mine", (el) => el
         .children(accs.flatMap((a) => (a.warnings ?? []).map((w) => div().text_size(11.5).text_color(t.muted).child(`${a.login} · couldn't count ${w}`))))
         .child(this.kpis(t, s))
         .child(this.activity(t, s))
@@ -486,7 +601,7 @@ export default class Pulse extends View {
           .child(div().flex_1().min_w(0).child(this.repos(t, s, colors))))
         .child(h_flex().gap(16).items_start()
           .child(div().flex_1().min_w(0).child(this.closed(t, s, colors)))
-          .child(div().flex_1().min_w(0).child(this.issues(t, s, colors))));
+          .child(div().flex_1().min_w(0).child(this.issues(t, s, colors)))));
     }
     return h_flex().size_full().bg(t.canvas ?? t.background).text_color(t.foreground)
       .child(this.sidebar(t, colors))

@@ -1,5 +1,5 @@
 import { View, div, svg } from "gpui-kit";
-import { h_flex, v_flex, InputState, Input } from "gpui-base";
+import { h_flex, v_flex, InputState, Input, Scrollbar } from "gpui-base";
 import { exec, theme, window, spaces, run, openOverlay, shared, setShared, checking } from "herdr";
 
 // Jira: my tickets from Jira Cloud as a Kanban board, linked to GitHub PRs and Herdr spaces.
@@ -249,26 +249,27 @@ export default class Jira extends View {
     const w = window(), lights = w?.platform === "macos" && !w?.fullscreen;
     const open = (list) => list.filter((i) => !["Done", "Backlog"].includes(columnOf(i))).length;
     const projects = [...new Map(all.map((i) => [i.project, i.projectName])).entries()].sort();
-    const row = (id, label, count, on, action) => h_flex().id(id).h(28).px(8).gap(8).items_center().rounded(6).cursor_pointer()
+    const row = (id, label, count, on, action) => h_flex().id(id).h(28).flex_none().px(8).gap(8).items_center().rounded(6).cursor_pointer()
       .bg(on ? t.selected : t.chrome).text_color(on ? t.foreground : t.muted).hover((s) => s.bg(t.hover).text_color(t.foreground))
       .on_click(action).tooltip(label)
       .child(div().flex_1().min_w(0).truncate().child(label))
       .child(div().text_size(11).text_color(t.dim).child(String(count)));
     const label = (text) => div().px(8).pt(14).pb(4).text_size(11).text_color(t.dim).font_medium().child(text);
     return v_flex().w(232).flex_none().h_full().bg(t.chrome).border_r(1).border_color(t.border).text_size(13)
-      .child(h_flex().h(46).pl(lights ? 30 : 16).pr(10).items_center().gap(8)
+      .child(h_flex().h(46).flex_none().pl(lights ? 30 : 16).pr(10).items_center().gap(8)
         .child(svg("mods/rail/kanban.svg").size(15).text_color(t.accent))
         .child(div().flex_1().font_semibold().text_color(t.foreground).child("Jira")))
-      .child(v_flex().px(8).gap(1)
-        .when(Boolean(this.site), (el) => el.child(div().px(8).text_size(11.5).text_color(t.dim).truncate().child(this.site)))
-        .child(label("PROJECTS"))
-        .child(row("p-all", "All projects", open(all), this.project === "all", (_e, cx) => { this.project = "all"; cx.notify(); }))
-        .children(projects.map(([k, name]) => row(`p-${k}`, name ? `${k} · ${name}` : k, open(all.filter((i) => i.project === k)), this.project === k,
-          (_e, cx) => { this.project = k; cx.notify(); })))
-        .child(label("SHOW"))
-        .child(row("backlog", "Backlog", all.filter((i) => columnOf(i) === "Backlog").length, this.backlog, (_e, cx) => { this.backlog = !this.backlog; cx.notify(); })))
-      .child(div().flex_1())
-      .child(h_flex().id("refresh").h(40).px(16).gap(8).items_center().border_t(1).border_color(t.border).text_size(11.5).text_color(t.muted).cursor_pointer()
+      .child(div().flex_1().min_h(0).relative()
+        .child(v_flex().id("jira-projects").absolute().inset_0().overflow_y_scroll().px(8).gap(1)
+          .when(Boolean(this.site), (el) => el.child(div().px(8).text_size(11.5).text_color(t.dim).truncate().child(this.site)))
+          .child(label("PROJECTS"))
+          .child(row("p-all", "All projects", open(all), this.project === "all", (_e, cx) => { this.project = "all"; cx.notify(); }))
+          .children(projects.map(([k, name]) => row(`p-${k}`, name ? `${k} · ${name}` : k, open(all.filter((i) => i.project === k)), this.project === k,
+            (_e, cx) => { this.project = k; cx.notify(); })))
+          .child(label("SHOW"))
+          .child(row("backlog", "Backlog", all.filter((i) => columnOf(i) === "Backlog").length, this.backlog, (_e, cx) => { this.backlog = !this.backlog; cx.notify(); })))
+        .child(Scrollbar.vertical("jira-projects").absolute().inset_0()))
+      .child(h_flex().id("refresh").h(40).flex_none().px(16).gap(8).items_center().border_t(1).border_color(t.border).text_size(11.5).text_color(t.muted).cursor_pointer()
         .hover((s) => s.text_color(t.foreground))
         .on_click((_e, cx) => this.refresh(cx))
         .when(Boolean(this.loading), (el) => el.child(svg("mods/jira/spinner.svg").size(12).spin(900)))
@@ -292,7 +293,7 @@ export default class Jira extends View {
 
   card(t, i, col) {
     const on = this.selected === i.key;
-    return v_flex().id(`tk-${i.key}`).min_w(0).gap(3).px(8).py(6).rounded(6).border(1).border_color(on ? t.accent : t.border)
+    return v_flex().id(`tk-${i.key}`).flex_none().min_w(0).gap(3).px(8).py(6).rounded(6).border(1).border_color(on ? t.accent : t.border)
       .border_l(3).border_color(on ? t.accent : this.colColor(t, col)).bg(t.background).cursor_pointer().hover((s) => s.bg(t.hover))
       .on_click((_e, cx) => this.select(i.key, cx))
       .child(h_flex().gap(6).items_center().text_size(11).text_color(t.muted)
@@ -305,18 +306,22 @@ export default class Jira extends View {
 
   board(t, list) {
     const cols = this.backlog ? ["Backlog", ...COLUMNS] : COLUMNS;
-    return v_flex().min_w(0).border(1).border_color(t.border).rounded(8).bg(t.background)
-      .child(h_flex().h(36).px(12).gap(8).items_center().border_b(1).border_color(t.border)
+    return v_flex().flex_1().min_h(0).min_w(0).border(1).border_color(t.border).rounded(8).bg(t.background)
+      .child(h_flex().h(36).flex_none().px(12).gap(8).items_center().border_b(1).border_color(t.border)
         .child(div().font_semibold().child("My board"))
         .child(div().text_size(11.5).text_color(t.muted).child(`${list.filter((i) => cols.includes(columnOf(i))).length} tickets`)))
-      .child(h_flex().items_start().children(cols.map((c, idx) => {
+      .child(h_flex().flex_1().min_h(0).items_stretch().children(cols.map((c, idx) => {
         const items = list.filter((i) => columnOf(i) === c);
-        return v_flex().flex_1().min_w(0).p(8).gap(6).when(idx < cols.length - 1, (el) => el.border_r(1).border_color(t.border))
-          .child(h_flex().gap(6).items_center().text_size(12)
+        const id = `jira-column-${c}`;
+        return v_flex().flex_1().min_w(0).min_h(0).when(idx < cols.length - 1, (el) => el.border_r(1).border_color(t.border))
+          .child(h_flex().flex_none().p(8).gap(6).items_center().text_size(12)
             .child(div().size(8).rounded(4).bg(this.colColor(t, c)))
             .child(div().font_semibold().text_color(t.foreground).child(c))
             .child(div().text_color(t.muted).child(String(items.length))))
-          .children(items.length ? items.map((i) => this.card(t, i, c)) : [div().text_size(11.5).text_color(t.dim).child("Nothing here")]);
+          .child(div().flex_1().min_h(0).relative()
+            .child(v_flex().id(id).absolute().inset_0().overflow_y_scroll().px(8).pb(8).gap(6)
+              .children(items.length ? items.map((i) => this.card(t, i, c)) : [div().text_size(11.5).text_color(t.dim).child("Nothing here")]))
+            .child(Scrollbar.vertical(id).absolute().inset_0()));
       })));
   }
 
@@ -393,12 +398,12 @@ export default class Jira extends View {
     else {
       const list = this.project === "all" ? all : all.filter((i) => i.project === this.project);
       const sel = all.find((i) => i.key === this.selected);
-      const page = v_flex().id("jira-scroll").flex_1().min_w(0).h_full().overflow_y_scrollbar().p(16).gap(16)
-        .child(h_flex().gap(10).items_center()
+      const page = v_flex().flex_1().min_w(0).min_h(0).h_full().overflow_hidden().p(16).gap(16)
+        .child(h_flex().flex_none().gap(10).items_center()
           .child(div().text_size(18).font_semibold().child(this.project === "all" ? "All projects" : this.project))
           .child(div().text_size(12).text_color(t.muted).child(`assigned to me · Done from the last ${DONE_DAYS} days`)))
         .when(Boolean(this.error), (el) => el.child(div().text_size(12).text_color(t.ansi1).child(`Refresh failed: ${this.error}`)))
-        .child(this.kpis(t, list))
+        .child(this.kpis(t, list).flex_none())
         .child(this.board(t, list));
       body = h_flex().flex_1().min_w(0).h_full().child(page).when(Boolean(sel), (el) => el.child(this.detail(t, sel)));
     }
