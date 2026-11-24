@@ -88,6 +88,18 @@ Linux and Windows keep Ctrl+A for the shell; bind `terminal.select_all` in `keys
 
 [Layouts and mods](docs/mods.md) · [Commands](docs/commands.md)
 
+Slack (macOS): the Slack screen reads channels, DMs, threads and search live
+through [Slack's MCP server](https://docs.slack.dev/ai/slack-mcp-server/) and
+posts only when you click Send. Create an internal Slack app, enable MCP for it,
+add the user scopes `search:read.public search:read.private search:read.im
+search:read.mpim channels:history groups:history im:history mpim:history
+channels:read groups:read im:read mpim:read users:read search:read.users
+im:write chat:write`, install it, copy the User OAuth Token
+(`xoxp-...`) and save it:
+`security add-generic-password -U -s herdr-slack-mcp -a slack -w "$(pbpaste)"`.
+`just slack-token` then gives Copilot CLI the same token, so agents can read,
+send and schedule Slack messages (they confirm with you first).
+
 ## Updates and privacy
 
 Installed releases check for updates in the background and download a new app beside the running one. It takes over when you quit and reopen, or choose the update action. Your terminals keep running in the core.

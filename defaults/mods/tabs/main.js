@@ -131,6 +131,8 @@ export default class Tabs extends View {
     const panel = find(root, "panel"), body = find(root, "panel-body");
     const enabled = shared("workspace.panels") ?? ["files", "changes"];
     this.syncPanel(space, panel, body, enabled);
+    // An expanded Files/Changes hides the terminals; closing the panel (button, space switch) brings them back.
+    if (panel?.hidden && find(root, "main")?.hidden) { run("layout.show", { id: "main" }); run("layout.resize", { id: "panel", px: shared("panel.px") ?? 368 }); }
     const panelButton = (id, label, icon) => {
       const on = panel && !panel.hidden && body?.active === id;
       return h_flex().id(`panel-${id}`).h(26).px(8).gap(5).flex_none().items_center().rounded(6)

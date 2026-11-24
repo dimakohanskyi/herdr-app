@@ -596,6 +596,22 @@ fn font_pickers_contain_scroll_on_the_wrapper(cx: &mut TestAppContext) {
     }
 }
 
+#[gpui::test]
+fn jira_columns_scroll_independently(cx: &mut TestAppContext) {
+    cx.update(gpui_shell::init);
+    let staged = Staged::new();
+    let tree = describe(cx, &staged, "mods/jira", true, props(), updates("current", "current"),
+        Some("this.backlog = true; this.issues = Array.from({length: 30}, (_, n) => ({key: `ABC-${n}`, title: 'Ticket', type: 'Task', status: 'To Do', category: 'new', project: 'ABC', updated: '2026-01-01'})); this.selected = 'ABC-0';")).unwrap();
+    for id in ["jira-projects", "jira-column-Backlog", "jira-column-To Do", "jira-column-In Progress",
+        "jira-column-In Review", "jira-column-Stage QA", "jira-column-Done"] {
+        let line = tree.lines().find(|line| line.contains(id) && line.contains("overflow_y_scroll")).unwrap_or_else(|| panic!("missing scroll area {id}: {tree}"));
+        assert!(line.contains("absolute") && line.contains("inset_0"), "{line}");
+        assert!(tree.matches(id).count() >= 2, "missing scrollbar for {id}: {tree}");
+    }
+    assert!(tree.contains("tk-ABC-29") && tree.contains("detail"), "{tree}");
+    assert!(!tree.contains("jira-scroll"), "the whole page must not scroll: {tree}");
+}
+
 struct RootedView(gpui::Entity<gpui_shell::ShellRoot>);
 impl gpui::Render for RootedView {
     fn render(&mut self, _: &mut gpui::Window, _: &mut gpui::Context<Self>) -> impl gpui::IntoElement {

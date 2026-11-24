@@ -187,12 +187,23 @@ changed (merged and open PRs) and daily activity (commits, PRs opened and
 merged, reviews, workflow runs they triggered, comments, branches and
 releases) across every account `gh auth status` lists, by account, for
 organisation repos (default), personal repos or both, and for 7, 30 or 90
-days; it runs `gh` and refreshes every 5 minutes; and `jira`:
+days; it runs `gh` and refreshes every 5 minutes. Its My PRs page lists
+the person's open PRs with checks, review and merge state, and merges them
+(squash, merge or rebase, as the repo allows), turns auto-merge on or off,
+updates a branch that's behind or marks a draft ready, each only after a
+second click; and `jira`:
 the person's Jira Cloud tickets as a board (To Do, In Progress, In Review,
 Stage QA, Done from the last 14 days, Backlog on demand), each with the
 PRs that mention its key and its space, and Move to, Assign to me and
 Comment, which write to Jira only when clicked. Its token is the Keychain
-item `herdr-jira` (account: email, comment: site). Show a
+item `herdr-jira` (account: email, comment: site); and `slack` (macOS):
+channels, DMs and threads read live through Slack's official MCP server
+(`https://mcp.slack.com/mcp`), opened by ID or a pasted Slack link and kept
+in a recent list, plus Slack search and replies that post as the person only
+when Send is clicked. Nothing is cached. Its token is the Keychain item
+`herdr-slack-mcp`: a Slack user token (`xoxp-`) from an internal Slack app
+with MCP enabled. Agents use Slack through the same MCP server configured
+in their own client, not through this panel. Show a
 screen with `layout.select {stack: "screens", child: "pulse"}`; hide or
 show the rail with `layout.toggle {id: "rail"}` (the sidebar footer's
 Hide screens, `cmd-shift-b` on macOS); add one
