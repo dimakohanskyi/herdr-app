@@ -437,6 +437,9 @@ export function notify(n: {
   level?: "info" | "success" | "warning" | "error";
   timeout?: number;
   icon?: string;
+  /** Who it's from; the toast looks different per source ("agent", "slack", "jira"; others are
+   *  labeled as given; none is Herdr's own). */
+  source?: string;
   action?: { name: string; args?: Record<string, unknown> };
 }): string;
 

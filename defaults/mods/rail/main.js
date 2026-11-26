@@ -9,6 +9,8 @@ const SCREENS = [
   { id: "pulse", icon: "mods/rail/activity.svg", label: "Pulse", badge: "pulse.attention" },
   { id: "jira", icon: "mods/rail/kanban.svg", label: "Jira" },
   { id: "slack", icon: "mods/rail/slack.svg", label: "Slack" },
+  { id: "notes", icon: "mods/rail/notes.svg", label: "Notes" },
+  { id: "usage", icon: "mods/rail/usage.svg", label: "Usage" },
 ];
 
 function find(node, id) {

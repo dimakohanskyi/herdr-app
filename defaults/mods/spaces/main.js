@@ -451,9 +451,7 @@ export default class Spaces extends View {
   row({ w, i, g, tree }, t) {
     const on = w.active;
     const fromIndex = this.pressed === null ? -1 : spaces().findIndex(s => s.id === this.pressed);
-    const colors = shared("space.colors") ?? {};
-    const color = colors[w.id] ?? "ansi6";
-    const fill = color.startsWith("#") ? color : (MARK[color] ?? t[color]);
+    const fill = this.fill(w, t);
     return v_flex()
       .relative()
       .id(`space-${w.id}`)
@@ -505,20 +503,32 @@ export default class Spaces extends View {
       );
   }
 
-  compact({ w, i }, t) {
+  fill(w, t) {
+    const color = (shared("space.colors") ?? {})[w.id] ?? "ansi6";
+    return color.startsWith("#") ? color : (MARK[color] ?? t[color]);
+  }
+
+  // The rail keeps each space's colored letter (a worktree: its branch mark), with a corner dot only when it needs you.
+  compact({ w, i, tree }, t) {
+    const speaks = glyph(w.status) === "●";
+    const mark = tree
+      ? h_flex().size(22).items_center().justify_center().child(svg("mods/workspace-chrome/branch.svg").size(13).text_color(t.dim))
+      : h_flex().size(22).rounded(6).bg(this.fill(w, t)).items_center().justify_center().text_size(11.5).font_bold().text_color("#ffffff")
+        .when(!w.active, el => el.opacity(0.75)).child([...w.name][0]?.toUpperCase() ?? "?");
     return railCell(h_flex()
       .id(`space-${w.id}`)
       .relative()
       .w(RAIL_CELL)
-      .h(26)
-      .rounded(6)
+      .h(30)
+      .rounded(7)
       .justify_center()
       .items_center()
+      .tooltip(`${i + 1}  ${w.name}`)
       .when(w.active, (el) => el.bg(t.selected))
       .when(!w.active, (el) => el.hover((s) => s.bg(t.hover)))
       .on_click(() => run("space.select", { id: w.id }))
-      .child(div().text_color(w.active ? t.foreground : t.muted).child(String(i + 1)))
-      .child(div().absolute().right(5).text_color(tone(t, w.status)).child(glyph(w.status))));
+      .child(mark)
+      .when(speaks, el => el.child(div().absolute().top(1).right(1).size(9).rounded_full().border(2).border_color(t.chrome).bg(tone(t, w.status)))));
   }
 
   render() {
