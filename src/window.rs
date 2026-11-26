@@ -2376,7 +2376,7 @@ impl AppWindow {
             model::Alert::Done => (format!("{name} finished"), "info"),
         };
         let notification = json!({
-            "title": title, "body": place, "level": level,
+            "title": title, "body": place, "level": level, "source": "agent",
             "action": { "name": "agent.focus", "args": { "terminal": addr } },
         });
         self.open_overlay(mods::new_overlay_id(), json!({ "kind": "toast", "notification": notification }), window, cx);
