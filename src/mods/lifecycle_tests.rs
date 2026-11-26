@@ -470,6 +470,46 @@ export default class extends View {
 }
 
 #[gpui::test]
+fn save_shortcut_reaches_the_panel_past_a_focused_editor(cx: &mut TestAppContext) {
+    // The Files panel edits in an Editor and saves on cmd-s from its own on_key_down: the editor must type and let cmd-s through.
+    cx.update(gpui_shell::init);
+    let fixture = Fixture::new(r#"
+import { View, div } from "gpui-kit";
+import { Editor, EditorState } from "gpui-base";
+import { note } from "fixture";
+export default class extends View {
+  init(_props, cx) {
+    this.code = EditorState.new({ language: "txt", value: "a\r\nb" });
+    note(`loaded ${JSON.stringify(this.code.value())}`);
+    this.code.on("change", () => note("change"));
+  }
+  render() {
+    if (!this.focused) { this.focused = true; this.code.focus(); }
+    return div().size_full().on_key_down((e, cx) => { if (e.key === "s" && e.modifiers.platform) { note(`save ${this.code.value()}`); cx.stop_propagation(); } })
+      .child(Editor.new(this.code).size_full());
+  }
+}"#);
+    let notes = Rc::new(RefCell::new(Vec::new()));
+    let calls = notes.clone();
+    gpui_shell::policy::set_default(Policy::new().with_host_module(HostModule::new("fixture").function("note", move |a| {
+        calls.borrow_mut().push(a.string(0)?.to_owned());
+        Ok(HostValue::Null)
+    })).unwrap());
+    let runtime = ShellRuntime::new_isolated().unwrap();
+    let window = cx.add_window(|window, cx| Mounted(runtime.try_load(&fixture.0, window, cx).unwrap()));
+    let mut visual = VisualTestContext::from_window(*window.deref(), cx);
+    visual.update(|window, cx| window.draw(cx).clear(cx));
+    visual.run_until_parked();
+    visual.update(|window, cx| window.draw(cx).clear(cx));
+    visual.simulate_keystrokes("x cmd-s");
+    visual.run_until_parked();
+    let notes = notes.borrow();
+    assert_eq!(notes[0], r#"loaded "a\r\nb""#, "CRLF survives loading, so Files can edit such files");
+    assert!(notes.contains(&"change".to_owned()), "typing reports change: {notes:?}");
+    assert!(notes.iter().any(|n| n.starts_with("save ") && n.contains('x')), "cmd-s reaches the panel with the edit: {notes:?}");
+}
+
+#[gpui::test]
 fn herdr_checking_is_false_in_a_live_load(cx: &mut TestAppContext) {
     cx.update(gpui_shell::init);
     let fixture = Fixture::new(r#"

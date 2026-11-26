@@ -92,6 +92,8 @@ deploy:
       rm -rf "$old"
       echo "Removed $old."
     fi
+    # The installed app is a copy; drop the ~20 GB build cache (next build starts from scratch).
+    cargo clean
 
 [windows]
 install:

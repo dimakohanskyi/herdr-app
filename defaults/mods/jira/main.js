@@ -53,11 +53,12 @@ async function api(cred, method, path, body) {
   return text ? JSON.parse(text) : null;
 }
 
-async function loadIssues(cred) {
-  const jql = `assignee = currentUser() AND (statusCategory != Done OR resolved >= -${DONE_DAYS}d) ORDER BY updated DESC`;
-  const fields = ["summary", "status", "issuetype", "project", "updated", "resolutiondate"];
+// everyone: every ticket the token can see, not only yours (same 300 cap, newest first).
+async function loadIssues(cred, everyone) {
+  const jql = `${everyone ? "" : "assignee = currentUser() AND "}(statusCategory != Done OR resolved >= -${DONE_DAYS}d) ORDER BY updated DESC`;
+  const fields = ["summary", "status", "issuetype", "project", "updated", "resolutiondate", "assignee"];
   // Search answers a rejected token as an anonymous visitor (200, no tickets): ask who we are first.
-  await api(cred, "GET", "/rest/api/3/myself");
+  const me = await api(cred, "GET", "/rest/api/3/myself");
   let issues = [], next;
   // ponytail: up to 300 tickets; raise the page count if that's ever not enough.
   for (let page = 0; page < 3; page++) {
@@ -75,6 +76,8 @@ async function loadIssues(cred) {
     project: i.fields.project?.key ?? i.key.split("-")[0],
     projectName: i.fields.project?.name ?? "",
     updated: i.fields.updated,
+    assignee: i.fields.assignee?.displayName ?? null,
+    mine: i.fields.assignee?.accountId === me.accountId,
   }));
 }
 
@@ -143,12 +146,17 @@ export default class Jira extends View {
     this.project = "all";
     this.backlog = false;
     this.issues = null;
-    try { const c = JSON.parse(localStorage.getItem(CACHE) ?? "null"); this.issues = c?.issues ?? null; this.at = c?.at; this.site = c?.site; } catch {}
+    try { const c = JSON.parse(localStorage.getItem(CACHE) ?? "null"); this.issues = c?.issues ?? null; this.at = c?.at; this.site = c?.site; this.everyone = Boolean(c?.everyone); } catch {}
     this.comment = InputState.new({ placeholder: "Add a comment…" });
     this.comment.on("submit", (_e, cx) => this.sendComment(cx));
     if (checking()) return;
     this.refresh(cx);
     cx.timer.every(REFRESH_MS, (cx) => this.refresh(cx));
+  }
+
+  toggleEveryone(cx) {
+    this.everyone = !this.everyone; this.project = "all"; this.loading = false;
+    this.refresh(cx);
   }
 
   refresh(cx) {
@@ -159,10 +167,14 @@ export default class Jira extends View {
         this.cred = await credentials();
         if (!this.cred) { this.setup = true; return; }
         this.setup = false; this.site = this.cred.site;
-        this.issues = await loadIssues(this.cred);
+        const everyone = this.everyone;
+        const issues = await loadIssues(this.cred, everyone);
+        if (everyone !== this.everyone) return; // toggled meanwhile: that refresh owns the result
+        this.issues = issues;
         this.at = Date.now();
-        try { localStorage.setItem(CACHE, JSON.stringify({ issues: this.issues, at: this.at, site: this.site })); } catch {}
-        const open = this.issues.filter((i) => !["Done", "Backlog"].includes(columnOf(i))).length;
+        try { localStorage.setItem(CACHE, JSON.stringify({ issues: this.issues, at: this.at, site: this.site, everyone })); } catch {}
+        // The rail badge counts your own open tickets either way.
+        const open = this.issues.filter((i) => i.mine !== false && !["Done", "Backlog"].includes(columnOf(i))).length;
         if (shared("jira.open") !== open) setShared("jira.open", open);
         if (this.selected && !this.issues.some((i) => i.key === this.selected)) this.selected = null;
       } catch (e) {
@@ -267,6 +279,7 @@ export default class Jira extends View {
           .children(projects.map(([k, name]) => row(`p-${k}`, name ? `${k} · ${name}` : k, open(all.filter((i) => i.project === k)), this.project === k,
             (_e, cx) => { this.project = k; cx.notify(); })))
           .child(label("SHOW"))
+          .child(row("everyone", "Everyone's tickets", this.everyone ? all.length : "", this.everyone, (_e, cx) => this.toggleEveryone(cx)))
           .child(row("backlog", "Backlog", all.filter((i) => columnOf(i) === "Backlog").length, this.backlog, (_e, cx) => { this.backlog = !this.backlog; cx.notify(); })))
         .child(Scrollbar.vertical("jira-projects").absolute().inset_0()))
       .child(h_flex().id("refresh").h(40).flex_none().px(16).gap(8).items_center().border_t(1).border_color(t.border).text_size(11.5).text_color(t.muted).cursor_pointer()
@@ -285,7 +298,7 @@ export default class Jira extends View {
       .child(div().text_size(11).text_color(t.muted).truncate().child(sub));
     const active = list.filter((i) => !["Done", "Backlog"].includes(columnOf(i))).length;
     return h_flex().gap(10)
-      .child(tile("Assigned to me", active, `${n("Backlog")} more in backlog`))
+      .child(tile(this.everyone ? "Open" : "Assigned to me", active, `${n("Backlog")} more in backlog`))
       .child(tile("In progress", n("In Progress"), `${n("To Do")} waiting in To Do`))
       .child(tile("In review + QA", n("In Review") + n("Stage QA"), `${n("In Review")} review · ${n("Stage QA")} QA`, n("In Review") + n("Stage QA") ? t.ansi3 : null))
       .child(tile(`Done · ${DONE_DAYS} days`, n("Done"), "moved to Done"));
@@ -300,6 +313,7 @@ export default class Jira extends View {
         .child(div().font_semibold().text_color(t.foreground).child(i.key))
         .child(div().child(i.type))
         .child(div().flex_1())
+        .when(Boolean(this.everyone), (el) => el.child(div().truncate().text_color(i.mine ? t.accent : t.muted).child(i.assignee ?? "Unassigned")))
         .child(div().text_color(t.dim).child(ago(i.updated))))
       .child(div().text_size(12.5).text_color(t.foreground).child(i.title));
   }
@@ -308,7 +322,7 @@ export default class Jira extends View {
     const cols = this.backlog ? ["Backlog", ...COLUMNS] : COLUMNS;
     return v_flex().flex_1().min_h(0).min_w(0).border(1).border_color(t.border).rounded(8).bg(t.background)
       .child(h_flex().h(36).flex_none().px(12).gap(8).items_center().border_b(1).border_color(t.border)
-        .child(div().font_semibold().child("My board"))
+        .child(div().font_semibold().child(this.everyone ? "Board" : "My board"))
         .child(div().text_size(11.5).text_color(t.muted).child(`${list.filter((i) => cols.includes(columnOf(i))).length} tickets`)))
       .child(h_flex().flex_1().min_h(0).items_stretch().children(cols.map((c, idx) => {
         const items = list.filter((i) => columnOf(i) === c);
@@ -351,7 +365,7 @@ export default class Jira extends View {
           .hover((s) => s.bg(t.hover).text_color(t.foreground)).tooltip("Close")
           .on_click((_e, cx) => { this.selected = null; cx.notify(); }).child("×")))
       .child(div().text_size(15).font_semibold().child(i.title))
-      .child(div().text_size(11.5).text_color(t.muted).child(`${i.type ?? "Ticket"} · ${i.projectName ?? i.project} · updated ${ago(i.updated)} ago`))
+      .child(div().text_size(11.5).text_color(t.muted).child(`${i.type ?? "Ticket"} · ${i.projectName ?? i.project} · ${i.assignee ?? "Unassigned"} · updated ${ago(i.updated)} ago`))
       .child(h_flex().flex_wrap().gap(6).items_center()
         .when(Boolean(working), (el) => el.child(this.btn(t, "go-space", "Open in space", goSpace, true)))
         .when(!working && Boolean(home), (el) => el.child(this.btn(t, "start", "Start work", start, true)))
@@ -401,7 +415,7 @@ export default class Jira extends View {
       const page = v_flex().flex_1().min_w(0).min_h(0).h_full().overflow_hidden().p(16).gap(16)
         .child(h_flex().flex_none().gap(10).items_center()
           .child(div().text_size(18).font_semibold().child(this.project === "all" ? "All projects" : this.project))
-          .child(div().text_size(12).text_color(t.muted).child(`assigned to me · Done from the last ${DONE_DAYS} days`)))
+          .child(div().text_size(12).text_color(t.muted).child(`${this.everyone ? "everyone's" : "assigned to me"} · Done from the last ${DONE_DAYS} days`)))
         .when(Boolean(this.error), (el) => el.child(div().text_size(12).text_color(t.ansi1).child(`Refresh failed: ${this.error}`)))
         .child(this.kpis(t, list).flex_none())
         .child(this.board(t, list));

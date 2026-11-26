@@ -1,7 +1,7 @@
-// A lazy file browser for the focused pane's folder, with bounded read-only previews.
+// A lazy file browser for the focused pane's folder, with bounded previews you can edit and save (cmd-s / ctrl-s).
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, Editor, EditorState } from "gpui-base";
-import { spaces, panes, focused, exec, readTextFile, watchFolder, theme, settings, window, layout, run, shared, setShared } from "herdr";
+import { spaces, panes, focused, exec, readTextFile, writeTextFile, notify, watchFolder, theme, settings, window, layout, run, shared, setShared } from "herdr";
 
 function location() {
   const space = spaces().find(s => s.active), f = focused();
@@ -57,7 +57,7 @@ async function directory(path, on) {
 
 export default class Files extends View {
   init(_props, cx) {
-    this.saved = new Map();
+    this.saved = new Map(); this.queue = Promise.resolve();
     this.entries = new Map(); this.folders = new Set(); this.pending = new Set(); this.marks = {}; this.folderMarks = {}; this.ignored = new Set(); this.handle = cx.focus_handle();
     this.refresh(cx);
     cx.timer.every(10000, cx => this.refresh(cx));
@@ -155,8 +155,26 @@ export default class Files extends View {
     cx.notify();
   }
 
+  // Writes the open file only if it still matches what was loaded: an agent's edit meanwhile rejects the save instead of being overwritten.
+  // Writes queue one after another, so a save while leaving a file never races the last cmd-s.
+  save(cx) {
+    const doc = this.doc;
+    if (!doc?.editable) return;
+    const text = doc.code.value();
+    this.queue = this.queue.then(async () => {
+      if (text === doc.disk) return;
+      try { await writeTextFile(doc.abs, text, doc.disk); doc.disk = text; doc.error = null; }
+      catch (e) {
+        doc.error = "Changed on disk · not saved";
+        if (this.doc !== doc) notify({ title: "File not saved", body: `${doc.abs} changed on disk while you edited it.`, level: "error" });
+      }
+      finally { cx?.notify(); }
+    });
+  }
+
   show(path, cx) {
-    this.code?.release(); this.code = null; this.file = path; this.fileError = null;
+    this.save(cx); // leaving a file (back, another file, another space) keeps its edits
+    this.code?.release(); this.code = null; this.doc = null; this.file = path; this.fileError = null;
     if (!path || !cx) return;
     const context = this.context, root = this.root, on = this.on;
     cx.spawn(async cx => {
@@ -166,9 +184,17 @@ export default class Files extends View {
         if (text === null) { this.fileError = "This file is no longer available"; return; }
         if (text.includes("\0")) { this.fileError = "Binary file · no text preview"; return; }
         const t = theme(), ext = path.includes(".") ? path.split(".").pop() : "txt";
-        this.code = EditorState.new({ language: LANG[ext] ?? ext, readonly: true,
-          value: text.length > 400000 ? text.slice(0, 400000) + "\n… (file truncated)" : text,
+        const truncated = text.length > 400000, value = truncated ? text.slice(0, 400000) + "\n… (file truncated)" : text;
+        // ponytail: remote files stay read-only; writeTextFile has no `on` (a core API change, ask Can).
+        // U+FFFD means the read replaced bytes that weren't UTF-8: saving would corrupt them.
+        const editable = !on && !truncated && !text.includes("\uFFFD");
+        const open = readonly => EditorState.new({ language: LANG[ext] ?? ext, readonly, value,
           syntax: { keyword: t.ansi5, string: t.ansi2, comment: t.dim, function: t.ansi4, type: t.ansi3, number: t.ansi1, constant: t.ansi6 } });
+        this.code = open(!editable);
+        // Only edit what the editor gives back unchanged (line endings included), so a save never rewrites untouched text.
+        if (editable && this.code.value() !== text) { this.code.release(); this.code = open(true); }
+        this.doc = { code: this.code, abs: `${root}/${path}`, disk: text, editable: editable && this.code.value() === text, error: null };
+        this.code.on("change", (_e, cx) => cx.notify());
       } catch { if (this.file === path && this.current(context)) this.fileError = "Cannot preview this file (binary, too large, or unreadable)"; }
       finally { cx.notify(); }
     });
@@ -197,14 +223,19 @@ export default class Files extends View {
     if (key() !== this.context?.key) this.refresh(cx);
     const t = theme();
     const font = this.code ? settings() : null;
+    const doc = this.doc, state = !doc ? null : doc.error ?? (!doc.editable ? "read-only" : doc.code.value() !== doc.disk ? "● modified" : null);
     const big = expanded(), fileTint = this.file ? color(this.marks[`${this.root}/${this.file}`], t) : null;
     return v_flex().id("files").size_full().min_h(0).rounded(10).overflow_hidden().bg(t.background).border_1().border_color(t.border).text_color(t.foreground).text_size(13)
       .track_focus(this.handle).on_mouse_down("left", () => this.handle.focus())
-      .on_key_down((e, cx) => { if (e.key === "escape" && big) { toggleExpanded(); cx.stop_propagation(); } })
+      .on_key_down((e, cx) => {
+        if (e.key === "escape" && big) { toggleExpanded(); cx.stop_propagation(); }
+        if (e.key === "s" && (window()?.platform === "macos" ? e.modifiers.platform : e.modifiers.control) && this.doc) { this.save(cx); cx.stop_propagation(); }
+      })
       .child(h_flex().h(42).flex_none().px(14).gap(8).items_center().border_b(1).border_color(t.border)
         .when(Boolean(this.file), el => el.child(div().id("files-back").w(20).cursor_pointer().text_color(t.muted).on_click((_e, cx) => { this.show(null); cx.notify(); }).child("←")))
         .child(div().font_semibold().child("Files"))
         .child(div().flex_1().min_w(0).truncate().text_right().text_size(12).text_color(fileTint ?? t.dim).child(this.file ?? this.root?.split(/[\\/]/).pop() ?? ""))
+        .when(Boolean(state), el => el.child(div().flex_none().text_size(11).text_color(doc.error ? t.ansi1 : t.dim).child(state)))
         .child(div().id("files-expand").size(22).flex_none().flex().items_center().justify_center().rounded(6).cursor_pointer().text_color(t.dim).hover(s => s.bg(t.hover).text_color(t.foreground))
           .on_click((_e, cx) => { toggleExpanded(); cx.notify(); }).child(svg(`mods/pane/${big ? "unzoom" : "zoom"}.svg`).size(13))))
       .when(!this.file, el => el.child(v_flex().id("files-tree").flex_1().min_h(0).overflow_y_scrollbar().p(6).children(this.rows("", 0, [], t))
