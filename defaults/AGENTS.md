@@ -203,7 +203,10 @@ in a recent list, plus Slack search and replies that post as the person only
 when Send is clicked. Nothing is cached. Its token is the Keychain item
 `herdr-slack-mcp`: a Slack user token (`xoxp-`) from an internal Slack app
 with MCP enabled. Agents use Slack through the same MCP server configured
-in their own client, not through this panel. Show a
+in their own client, not through this panel; and `usage`: AI token usage
+and cost (by agent, model, project and activity, for today, 7 days, 30 days
+or the month) from the `codeburn` CLI, which it runs every 5 minutes and
+which must be installed. Show a
 screen with `layout.select {stack: "screens", child: "pulse"}`; hide or
 show the rail with `layout.toggle {id: "rail"}` (the sidebar footer's
 Hide screens, `cmd-shift-b` on macOS); add one
