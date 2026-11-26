@@ -50,12 +50,15 @@ export default class WorkspaceChrome extends View {
         .when(Boolean(rail()), el => el.child(row("rail-toggle", "panel-left", rail().hidden ? "Show screens" : "Hide screens", true,
           () => run("layout.toggle", { id: "rail" }))));
     }
-    return h_flex().size_full().bg(t.chrome).pl(collapsed ? 6 : 14).pr(10).gap(4).items_center().text_size(13.5)
+    // Collapsed: the toggle stays at the top, centered, where it was clicked.
+    const lights = window()?.platform === "macos" && !window()?.fullscreen;
+    return h_flex().size_full().bg(t.chrome).pl(14).pr(10).gap(4).items_center().text_size(13.5)
+      .when(collapsed, el => el.px(0).justify_center())
       // The screens rail, if the layout has one, already sits under part of the traffic lights.
-      .when(window()?.platform === "macos" && !window()?.fullscreen && !collapsed, el => el.pl(Math.max(14, 76 - (rail()?.hidden ? 0 : rail()?.size?.px ?? 0))))
+      .when(lights && !collapsed, el => el.pl(Math.max(14, 76 - (rail()?.hidden ? 0 : rail()?.size?.px ?? 0))))
       .when(!collapsed, el => el.child(h_flex().flex_1().gap(8).items_center().child(image("frame/welcome/herdr.png").size(20).rounded(5)).child(div().font_semibold().text_color(t.foreground).child("Herdr"))))
       .when(!collapsed, el => el.child(this.button("search", svg("mods/workspace-chrome/search.svg").size(15), () => run("mod.open", { name: "picker" }))))
-      // On the macOS rail the traffic lights fill the row; the agents list's » unfolds it.
-      .when(!(collapsed && window()?.platform === "macos"), el => el.child(this.button("sidebar-toggle", svg("mods/workspace-chrome/sidebar.svg").size(15), toggleSidebar)));
+      // With no screens rail under them, the macOS traffic lights fill the collapsed row; the agents list's » unfolds it then.
+      .when(!(collapsed && lights && (!rail() || rail().hidden)), el => el.child(this.button("sidebar-toggle", svg("mods/workspace-chrome/sidebar.svg").size(15), toggleSidebar)));
   }
 }
