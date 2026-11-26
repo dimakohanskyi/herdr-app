@@ -192,15 +192,18 @@ the person's open PRs with checks, review and merge state, and merges them
 (squash, merge or rebase, as the repo allows), turns auto-merge on or off,
 updates a branch that's behind or marks a draft ready, each only after a
 second click; and `jira`:
-the person's Jira Cloud tickets as a board (To Do, In Progress, In Review,
+the person's Jira Cloud tickets (or everyone's, a toggle) as a board (To Do, In Progress, In Review,
 Stage QA, Done from the last 14 days, Backlog on demand), each with the
 PRs that mention its key and its space, and Move to, Assign to me and
 Comment, which write to Jira only when clicked. Its token is the Keychain
 item `herdr-jira` (account: email, comment: site); and `slack` (macOS):
 channels, DMs and threads read live through Slack's official MCP server
-(`https://mcp.slack.com/mcp`), opened by ID or a pasted Slack link and kept
-in a recent list, plus Slack search and replies that post as the person only
-when Send is clicked. Nothing is cached. Its token is the Keychain item
+(`https://mcp.slack.com/mcp`), picked from the person's channel and DM list
+(with a filter) or opened by a pasted Slack link and kept in a recent list,
+shown as a chat (newest at the bottom), plus Slack search and replies that
+post as the person only on Enter or Send. Every minute it checks DMs and
+`#prod-alerts` / `#stage-alerts` and posts a notification for new messages
+(clicking it opens that chat). Nothing is cached. Its token is the Keychain item
 `herdr-slack-mcp`: a Slack user token (`xoxp-`) from an internal Slack app
 with MCP enabled. Agents use Slack through the same MCP server configured
 in their own client, not through this panel; and `usage`: AI token usage
@@ -213,7 +216,10 @@ Hide screens, `cmd-shift-b` on macOS); add one
 as another child of `screens` plus a row in the rail), and as examples `terminals` ("Terminals": tabs in
 the title bar, panes as cards, a space picker) and `win98`
 ("Herdr 98": a whole desktop in one mod, `win98`). Add a layout by
-writing a new file. The Files panel supports Windows folder paths with spaces,
+writing a new file. Files opened in the Files panel can be edited: `cmd-s`
+(`ctrl-s` off macOS) saves, as does leaving the file; a save is refused when
+the file changed on disk meanwhile. Remote, truncated (over 400k characters)
+and non-UTF-8 files stay read-only. The Files panel supports Windows folder paths with spaces,
 parentheses and apostrophes, and preserves Unicode file and folder names
 (including Chinese). Directory links expand as folders; their contents load
 only when expanded.
@@ -958,7 +964,12 @@ has 124 programs (agents, editors, runtimes, tools, databases, infra);
   `<worktrees.directory>/<repo>/<branch>` on the space's machine (default
   `~/.herdr/worktrees`; see settings.json above); the
   `spaces` sidebar nests worktree spaces under their repo's and shows each
-  space's repo, branch, ahead/behind and uncommitted changes). Shipped mods
+  space's repo, branch, ahead/behind and uncommitted changes), and `openspec`
+  (the focused repo's OpenSpec changes from `openspec list --json`, with task
+  progress; shows proposal, design and tasks as markdown, New change starts
+  `claude` with `/opsx:explore`, Apply opens the worktree dialog with
+  `{branch: <change>, argv: ["claude", "/opsx:apply <change>"]}`; open it with
+  `pane.split {direction: "right", mod: "openspec"}`). Shipped mods
   are Herdr's; duplicate with `mod.clone` before editing.
 
 ### Terminal link handlers

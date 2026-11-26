@@ -267,6 +267,17 @@ fn module(values: BTreeMap<String, Value>, calls: Rc<RefCell<Calls>>) -> HostMod
                 // Notes makes its folder and lists it: an empty one here.
                 "exec" if first == "mkdir" || first == "ls" => Some(json!({"code":0,"stdout":"","stderr":""})),
                 "exec" if first == "security" => Some(json!({"code":44,"stdout":"","stderr":"fixture: no keychain item"})),
+                // Usage reads codeburn's menubar JSON: one agent, model, project and activity.
+                "exec" if first == "codeburn" => {
+                    let row = json!({"name":"Fixture","cost":1.5,"inputTokens":10,"outputTokens":20,"cacheReadTokens":300,"cacheWriteTokens":40});
+                    let current = json!({"label":"Last 7 Days","cost":1.5,"calls":12,"sessions":3,"inputTokens":10,"outputTokens":20,
+                        "cacheReadTokens":300,"cacheWriteTokens":40,"cacheHitPercent":88.0,
+                        "providerDetails":[{"label":"Claude","hasUsage":true,"cost":1.5,"inputTokens":10,"outputTokens":20}],
+                        "topModels":[row],"topProjects":[row],"topActivities":[row],"tools":[{"name":"Bash","calls":5}],
+                        "skills":[{"name":"ponytail","turns":2,"cost":0.1}],"workflow":{"corrections":0,"medianTimeToFirstEditMs":90000}});
+                    let history = json!({"daily":[{"date":"2026-11-26","cost":1.5,"calls":12}]});
+                    Some(json!({"code":0,"stdout":json!({"current":current,"history":history}).to_string(),"stderr":""}))
+                }
                 _ => None,
             };
             let result = if let Some(reply) = reply {
